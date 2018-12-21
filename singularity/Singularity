@@ -17,8 +17,12 @@ From: ubuntu:latest
     This container provides an installation of tools needed for the chipimputation pipeline
     on https://github.com/h3abionet/chipimputation
 
-%post
+%runscript
+    echo "This is what happens when you run the container..."
+    export PATH=/opt/conda/bin:${PATH}
+    /bin/bash
 
+%post
     # Install Basic tools
     apt-get update --fix-missing && \
     apt-get install -y wget bzip2 ca-certificates \
@@ -34,6 +38,8 @@ From: ubuntu:latest
     echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
     echo "conda activate base" >> ~/.bashrc
 
+    conda install -y vcftools bcftools htslib samtools
+
     # install R packages
 #    R --slave -e 'install.packages("dplyr", repos="https://cloud.r-project.org/")'
 #    R --slave -e 'install.packages("ggplot2", repos="https://cloud.r-project.org/")'
@@ -41,10 +47,10 @@ From: ubuntu:latest
 #    R --slave -e 'install.packages("sm", repos="https://cloud.r-project.org/")'
 
     # Install minimac4
-#    wget http://debian.mirror.ac.za/debian/pool/main/libs/libstatgen/libstatgen0_1.0.14-2_amd64.deb
-#    dpkg -i libstatgen0_1.0.14-2_amd64.deb
-#    wget http://debian.mirror.ac.za/debian/pool/main/m/minimac4/minimac4_1.0.0-2_amd64.deb
-#    dpkg -i minimac4_1.0.0-2_amd64.deb
+    wget http://debian.mirror.ac.za/debian/pool/main/libs/libstatgen/libstatgen0_1.0.14-2_amd64.deb
+    dpkg -i libstatgen0_1.0.14-2_amd64.deb
+    wget http://debian.mirror.ac.za/debian/pool/main/m/minimac4/minimac4_1.0.0-2_amd64.deb
+    dpkg -i minimac4_1.0.0-2_amd64.deb
 
     # Install PLINK2
     # there is an undocumented stable url (without the date)
@@ -80,11 +86,12 @@ From: ubuntu:latest
 #    cd .. && rm -rf samtools-1.9*
 #
 #    # Install Eagle
-#    wget https://data.broadinstitute.org/alkesgroup/Eagle/downloads/Eagle_v2.4.tar.gz && \
-#        gunzip Eagle_v2.4.tar.gz && \
-#        tar xvf Eagle_v2.4.tar && \
-#        mv Eagle_v2.4/eagle /usr/local/bin/ && \
-#        rm -rf Eagle_v2.4
+    eagle="Eagle_v2.4_1"
+    wget https://data.broadinstitute.org/alkesgroup/Eagle/downloads/${eagle}.tar.gz && \
+        gunzip ${eagle}.tar.gz && \
+        tar xvf ${eagle}.tar && \
+        mv ${eagle}/eagle /usr/local/bin/ && \
+        rm -rf ${eagle}
 
 %environment
     export LANG=en_US.UTF-8
