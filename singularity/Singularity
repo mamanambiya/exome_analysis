@@ -25,8 +25,7 @@ From: ubuntu:latest
 %post
     # Install Basic tools
     apt-get update --fix-missing && \
-    apt-get install -y wget bzip2 ca-certificates \
-        git && \
+    apt-get install -y wget bzip2 ca-certificates git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 

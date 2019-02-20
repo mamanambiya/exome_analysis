@@ -25,8 +25,7 @@ nextflow -log ${OUTDIR}/LOG/exome_analysis.nextflow.log \
     run ${HOMEDIR}/exome_analysis.nf \
     -c ${HOMEDIR}/CHPC/${NAME}.config \
     -w ${OUTDIR}/work \
-    -resume
-#    -profile pbs
-#   -with-trace ${OUTDIR}/LOG/${NAME}.txt \
-#    -with-timeline ${OUTDIR}/LOG/${NAME}.html \
-#    -with-dag ${OUTDIR}/LOG/${NAME}.dot \
+    -resume \
+    -with-dag ${OUTDIR}/LOG/${NAME}.png \
+    -with-trace ${OUTDIR}/LOG/${NAME}.txt \
+    -with-timeline ${OUTDIR}/LOG/${NAME}.html
