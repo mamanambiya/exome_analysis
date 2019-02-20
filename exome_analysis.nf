@@ -205,7 +205,6 @@ process merge_pop_groups {
 }
 
 
-
 """
 Step: Convert from VCF to plink for PCA analysis
 """
