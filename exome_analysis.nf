@@ -179,7 +179,7 @@ params.dataset_groups.each{ dataset_group ->
 
     }
 }
-//
+println dataset_pop_groups
 // process merge_pop_groups {
 //     tag "merge_pop_groups_${group}"
 //     label "medmem"
