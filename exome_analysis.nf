@@ -179,71 +179,71 @@ params.dataset_groups.each{ dataset_group ->
 
     }
 }
-
-process merge_pop_groups {
-    tag "merge_pop_groups_${group}"
-    label "medmem"
-//    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
-    input:
-        set group, pop_vcfs, pop_samples from dataset_pop_groups.values()
-    output:
-        set group, file(vcf_out), file(sample_out) into merge_pop_groups
-    script:
-        vcf_out = "${group}.vcf.gz"
-        sample_out = "${group}.sample"
-        """
-        bcftools merge \
-            ${pop_vcfs} \
-            -Oz -o ${group}.tmp1.vcf.gz
-        ## Recalculate AC, AN, AF
-        bcftools +fill-tags ${group}.tmp1.vcf.gz -Oz -o ${group}.tmp2.vcf.gz
-        bcftools sort ${group}.tmp2.vcf.gz -Oz -o ${vcf_out}
-        bcftools index --tbi -f ${vcf_out}
-        cat ${pop_samples} > ${sample_out}
-        rm ${group}.tmp*.vcf.gz
-        """
-}
-
-
-"""
-Step: Convert from VCF to plink for PCA analysis
-"""
-process group_vcf_to_plink {
-    tag "group_vcf_to_plink_${group}"
-    label "medmem"
-//    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
-    input:
-        set group, file(group_vcf), file(group_sample) from merge_pop_groups
-    output:
-        set group, file(plink_bed), file(plink_bim), file(plink_fam) into group_vcf_to_plink
-    script:
-        plink_bed = "${group}_pruned.bed"
-        plink_bim = "${group}_pruned.bim"
-        plink_fam = "${group}_pruned.fam"
-        """
-        nblines=\$(zcat ${group_vcf} | grep -v '^#' | wc -l)
-        if (( \$nblines > 0 ))
-        then
-            plink2 \
-                --vcf ${group_vcf} \
-                --indep-pairwise 20 5 0.5 \
-                --allow-no-sex \
-                --make-bed \
-                --snps-only --biallelic-only strict \
-                --out ${group}
-            plink2 \
-                --vcf ${group_vcf} \
-                --extract ${group}.prune.in \
-                --make-bed --snps-only --biallelic-only strict \
-                --out ${group}_pruned
-            rm -rf ${group}.{bed,bim,fam}
-        else
-            touch ${plink_bed}
-            touch ${plink_bim}
-            touch ${plink_fam}
-        fi
-        """
-}
+//
+// process merge_pop_groups {
+//     tag "merge_pop_groups_${group}"
+//     label "medmem"
+// //    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
+//     input:
+//         set group, pop_vcfs, pop_samples from dataset_pop_groups.values()
+//     output:
+//         set group, file(vcf_out), file(sample_out) into merge_pop_groups
+//     script:
+//         vcf_out = "${group}.vcf.gz"
+//         sample_out = "${group}.sample"
+//         """
+//         bcftools merge \
+//             ${pop_vcfs} \
+//             -Oz -o ${group}.tmp1.vcf.gz
+//         ## Recalculate AC, AN, AF
+//         bcftools +fill-tags ${group}.tmp1.vcf.gz -Oz -o ${group}.tmp2.vcf.gz
+//         bcftools sort ${group}.tmp2.vcf.gz -Oz -o ${vcf_out}
+//         bcftools index --tbi -f ${vcf_out}
+//         cat ${pop_samples} > ${sample_out}
+//         rm ${group}.tmp*.vcf.gz
+//         """
+// }
+//
+//
+// """
+// Step: Convert from VCF to plink for PCA analysis
+// """
+// process group_vcf_to_plink {
+//     tag "group_vcf_to_plink_${group}"
+//     label "medmem"
+// //    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
+//     input:
+//         set group, file(group_vcf), file(group_sample) from merge_pop_groups
+//     output:
+//         set group, file(plink_bed), file(plink_bim), file(plink_fam) into group_vcf_to_plink
+//     script:
+//         plink_bed = "${group}_pruned.bed"
+//         plink_bim = "${group}_pruned.bim"
+//         plink_fam = "${group}_pruned.fam"
+//         """
+//         nblines=\$(zcat ${group_vcf} | grep -v '^#' | wc -l)
+//         if (( \$nblines > 0 ))
+//         then
+//             plink2 \
+//                 --vcf ${group_vcf} \
+//                 --indep-pairwise 20 5 0.5 \
+//                 --allow-no-sex \
+//                 --make-bed \
+//                 --snps-only --biallelic-only strict \
+//                 --out ${group}
+//             plink2 \
+//                 --vcf ${group_vcf} \
+//                 --extract ${group}.prune.in \
+//                 --make-bed --snps-only --biallelic-only strict \
+//                 --out ${group}_pruned
+//             rm -rf ${group}.{bed,bim,fam}
+//         else
+//             touch ${plink_bed}
+//             touch ${plink_bim}
+//             touch ${plink_fam}
+//         fi
+//         """
+// }
 
 //
 //'''
