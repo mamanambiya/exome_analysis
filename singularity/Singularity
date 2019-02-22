@@ -47,7 +47,7 @@ From: ubuntu:latest
     echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
     echo "conda activate base" >> ~/.bashrc
 
-    conda install -y vcftools bcftools htslib samtools
+    # conda install -y vcftools bcftools htslib samtools
 
     # install R packages
 #    R --slave -e 'install.packages("dplyr", repos="https://cloud.r-project.org/")'
