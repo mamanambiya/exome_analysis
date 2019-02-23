@@ -1,0 +1,56 @@
+#######################################################################
+#
+# This container provides an installation of tools needed for the chipimputation pipeline.
+#
+# Changelog
+# ---------
+#
+#######################################################################
+
+bootstrap: docker
+From: ubuntu:16.04
+
+%labels
+    Mamana Mbiyavanga "mamana.mbiyavanga@uct.ac.za", Ayton Meintjes "ayton.meintjes@uct.ac.za"
+
+%help
+    This container provides an installation of tools needed for the chipimputation pipeline
+    on https://github.com/h3abionet/chipimputation
+
+%runscript
+    echo "This is what happens when you run the container..."
+    export PATH=/opt/conda/bin:${PATH}
+    /bin/bash
+
+%post
+    # Install Basic tools
+    apt-get update \
+    && apt-get install -y --no-install-recommends \
+         make \
+         git \
+         ca-certificates \
+         gcc \
+         build-essential \
+         gfortran \
+         libgsl0-dev \
+         libopenblas-base \
+         libopenblas-dev \
+         liblapacke-dev \
+    && rm -rf /var/lib/apt/lists/*
+    # Compile EIG
+    git clone --depth 1 --branch master https://github.com/DReichLab/EIG /tmp/EIG
+    cd /tmp/EIG/src
+    #ADD Makefile.patch Makefile.patch
+    patch < Makefile.patch
+    make clobber OPENBLAS=/opt/openblas \
+    && make install OPENBLAS=/opt/openblas \
+    && mv ../bin/* /usr/local/bin
+
+# Tidy up
+RUN rm -rf /tmp/*
+
+
+%environment
+    export LANG=en_US.UTF-8
+    export LANGUAGE=en_US:en
+    export LC_ALL=C.UTF-8
