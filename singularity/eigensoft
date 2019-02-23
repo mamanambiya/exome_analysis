@@ -41,7 +41,7 @@ From: ubuntu:16.04
     git clone --depth 1 --branch master https://github.com/DReichLab/EIG /tmp/EIG
     cd /tmp/EIG/src
     #ADD Makefile.patch Makefile.patch
-    patch < Makefile.patch
+    #patch < Makefile.patch
     make clobber OPENBLAS=/opt/openblas \
     && make install OPENBLAS=/opt/openblas \
     && mv ../bin/* /usr/local/bin
