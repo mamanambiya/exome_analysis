@@ -39,15 +39,13 @@ From: ubuntu:16.04
     && rm -rf /var/lib/apt/lists/*
     # Compile EIG
     git clone --depth 1 --branch master https://github.com/DReichLab/EIG /tmp/EIG
-    # cd /tmp/EIG/src
-    # #ADD Makefile.patch Makefile.patch
-    # #patch < Makefile.patch
-    # make clobber OPENBLAS=/opt/openblas \
-    # && make install OPENBLAS=/opt/openblas \
-    # && mv ../bin/* /usr/local/bin
-    #
-    # # Tidy up
-    # rm -rf /tmp/*
+    cd /tmp/EIG/src
+    make clobber OPENBLAS=/opt/openblas LDLIBS="-llapacke"\
+    && make install OPENBLAS=/opt/openblas LDLIBS="-llapacke" \
+    && mv ../bin/* /usr/local/bin
+    
+    # Tidy up
+    rm -rf /tmp/*
 
 %environment
     export LANG=en_US.UTF-8
