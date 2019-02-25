@@ -24,30 +24,30 @@ From: ubuntu:16.04
 
 %post
     # Install Basic tools
-    apt-get update \
-    && apt-get install -y --no-install-recommends \
-         make \
-         git \
-         ca-certificates \
-         gcc \
-         build-essential \
-         gfortran \
-         libgsl0-dev \
-         libopenblas-base \
-         libopenblas-dev \
-         liblapacke-dev \
-    && rm -rf /var/lib/apt/lists/*
-    # Compile EIG
-    git clone --depth 1 --branch master https://github.com/DReichLab/EIG /tmp/EIG
-    cd /tmp/EIG/src
-    #ADD Makefile.patch Makefile.patch
-    #patch < Makefile.patch
-    make clobber OPENBLAS=/opt/openblas \
-    && make install OPENBLAS=/opt/openblas \
-    && mv ../bin/* /usr/local/bin
-
-    # Tidy up
-    rm -rf /tmp/*
+    # apt-get update \
+    # && apt-get install -y --no-install-recommends \
+    #      make \
+    #      git \
+    #      ca-certificates \
+    #      gcc \
+    #      build-essential \
+    #      gfortran \
+    #      libgsl0-dev \
+    #      libopenblas-base \
+    #      libopenblas-dev \
+    #      liblapacke-dev \
+    # && rm -rf /var/lib/apt/lists/*
+    # # Compile EIG
+    # git clone --depth 1 --branch master https://github.com/DReichLab/EIG /tmp/EIG
+    # cd /tmp/EIG/src
+    # #ADD Makefile.patch Makefile.patch
+    # #patch < Makefile.patch
+    # make clobber OPENBLAS=/opt/openblas \
+    # && make install OPENBLAS=/opt/openblas \
+    # && mv ../bin/* /usr/local/bin
+    #
+    # # Tidy up
+    # rm -rf /tmp/*
 
 
 %environment
