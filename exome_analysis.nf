@@ -250,7 +250,7 @@ Step: Convert from VCF to plink for PCA analysis
 """
 process smartpca_group {
     tag "smartpca_group_${group}"
-    label "medmem"
+    label "smartpca"
 //    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
     input:
         set group, file(group_bed), file(group_bim), file(group_fam) from group_vcf_to_plink
