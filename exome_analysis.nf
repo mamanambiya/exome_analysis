@@ -245,35 +245,35 @@ process group_vcf_to_plink {
         """
 }
 
-"""
-Step: Convert from VCF to plink for PCA analysis
-"""
-process smartpca_group {
-    tag "smartpca_group_${group}"
-    label "medmem"
-//    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
-    input:
-        set group, file(group_bed), file(group_bim), file(group_fam) into group_vcf_to_plink
-    output:
-        set group, file(group_bed), file(group_bim), file(group_fam) into smartpca_group
-    script:
-        group_evec = "${group}_pruned.pca.evec"
-        group_eval = "${group}_pruned.eval"
-        """
-        nblines=\$(cat ${group_bim} | grep -v '^#' | wc -l)
-        if (( \$nblines > 0 ))
-        then
-            plink2 \
-                --bfile ${group_bed} \
-                --allow-no-sex \
-                --recode \
-                --out ${group}
-            rm -rf ${group}.{ped,map}
-        else
-            touch ${group_eval}
-        fi
-        """
-}
+// """
+// Step: Convert from VCF to plink for PCA analysis
+// """
+// process smartpca_group {
+//     tag "smartpca_group_${group}"
+//     label "medmem"
+// //    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
+//     input:
+//         set group, file(group_bed), file(group_bim), file(group_fam) into group_vcf_to_plink
+//     output:
+//         set group, file(group_bed), file(group_bim), file(group_fam) into smartpca_group
+//     script:
+//         group_evec = "${group}_pruned.pca.evec"
+//         group_eval = "${group}_pruned.eval"
+//         """
+//         nblines=\$(cat ${group_bim} | grep -v '^#' | wc -l)
+//         if (( \$nblines > 0 ))
+//         then
+//             plink2 \
+//                 --bfile ${group_bed} \
+//                 --allow-no-sex \
+//                 --recode \
+//                 --out ${group}
+//             rm -rf ${group}.{ped,map}
+//         else
+//             touch ${group_eval}
+//         fi
+//         """
+// }
 
 //
 //'''
