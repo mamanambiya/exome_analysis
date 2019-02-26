@@ -255,7 +255,7 @@ process smartpca_group {
     input:
         set group, file(group_bed), file(group_bim), file(group_fam) from group_vcf_to_plink
     output:
-        set group, file(group_evec), file(group_eval), file(group_fam) into smartpca_group
+        set group, file(group_evec), file(group_eval), file(group_grmjunk) into smartpca_group
     script:
         group_evec = "${group}_pruned.pca.evec"
         group_eval = "${group}_pruned.eval"
