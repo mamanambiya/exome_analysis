@@ -255,10 +255,11 @@ process smartpca_group {
     input:
         set group, file(group_bed), file(group_bim), file(group_fam) from group_vcf_to_plink
     output:
-        set group, file(group_bed), file(group_bim), file(group_fam) into smartpca_group
+        set group, file(group_evec), file(group_eval), file(group_fam) into smartpca_group
     script:
         group_evec = "${group}_pruned.pca.evec"
         group_eval = "${group}_pruned.eval"
+        group_grmjunk = "${group}.evec_grmjunk"
         """
         nblines=\$(cat ${group_bim} | grep -v '^#' | wc -l)
         if (( \$nblines > 0 ))
@@ -279,7 +280,7 @@ process smartpca_group {
             numoutevec:      5
             numoutlieriter:  0
             familynames:     NO
-            grmoutname:      ${group}.evec_grmjunk" > ${group}.EIGENSTRAT.par
+            grmoutname:      ${group_grmjunk}" > ${group}.EIGENSTRAT.par
             ## Run smartpca
             smartpca \
                     -p ${group}.EIGENSTRAT.par \
