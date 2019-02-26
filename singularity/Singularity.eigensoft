@@ -53,10 +53,12 @@ From: ubuntu:16.04
     echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
     echo "conda activate base" >> ~/.bashrc
 
+    conda install -y -c bioconda vcftools bcftools htslib samtools plink2
+
     # Tidy up
     rm -rf /tmp/*
 
-    
+
 %environment
     export LANG=en_US.UTF-8
     export LANGUAGE=en_US:en
