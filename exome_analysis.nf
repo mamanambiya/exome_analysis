@@ -253,19 +253,18 @@ process smartpca_group {
     label "medmem"
 //    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
     input:
-        set group, file(plink_bed), file(plink_bim), file(plink_fam) into group_vcf_to_plink
+        set group, file(group_bed), file(group_bim), file(group_fam) into group_vcf_to_plink
     output:
         set group, file(plink_bed), file(plink_bim), file(plink_fam) into smartpca_group
     script:
-        group_evec = "${group}_pruned.evec"
+        group_evec = "${group}_pruned.pca.evec"
         group_eval = "${group}_pruned.eval"
-        group_pca = "${group}_pruned.pca"
         """
-        nblines=\$(zcat ${group_vcf} | grep -v '^#' | wc -l)
+        nblines=\$(cat ${group_bim} | grep -v '^#' | wc -l)
         if (( \$nblines > 0 ))
         then
             plink2 \
-                --vcf ${group_vcf} \
+                --bfile ${group_vcf} \
                 --indep-pairwise 20 5 0.5 \
                 --allow-no-sex \
                 --make-bed \
