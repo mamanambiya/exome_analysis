@@ -264,22 +264,13 @@ process smartpca_group {
         if (( \$nblines > 0 ))
         then
             plink2 \
-                --bfile ${group_vcf} \
-                --indep-pairwise 20 5 0.5 \
+                --bfile ${group_bed} \
                 --allow-no-sex \
-                --make-bed \
-                --snps-only --biallelic-only strict \
+                --recode \
                 --out ${group}
-            plink2 \
-                --vcf ${group_vcf} \
-                --extract ${group}.prune.in \
-                --make-bed --snps-only --biallelic-only strict \
-                --out ${group}_pruned
-            rm -rf ${group}.{bed,bim,fam}
+            rm -rf ${group}.{ped,map}
         else
-            touch ${plink_bed}
-            touch ${plink_bim}
-            touch ${plink_fam}
+            touch ${group_eval}
         fi
         """
 }
