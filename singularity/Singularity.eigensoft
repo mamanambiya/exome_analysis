@@ -47,9 +47,11 @@ From: ubuntu:16.04
 
     # Install conda
     wget --quiet https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
-    /bin/bash ~/miniconda.sh -b -p /opt/conda && \
+    /bin/bash ~/miniconda.sh -b -p /opt/miniconda2 && \
     rm ~/miniconda.sh && \
 
+    # use conda to install some bioinfo tools
+    export PATH=/opt/miniconda2/bin:$PATH
     conda config --add channels bioconda
     conda config --add channels r
     conda install -y vcftools bcftools htslib samtools plink2
@@ -62,4 +64,4 @@ From: ubuntu:16.04
     export LANG=en_US.UTF-8
     export LANGUAGE=en_US:en
     export LC_ALL=C.UTF-8
-    export PATH="/opt/conda/bin:$PATH"
+    export PATH="/opt/miniconda2/bin:$PATH"
