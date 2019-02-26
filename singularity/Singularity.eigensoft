@@ -56,6 +56,7 @@ From: ubuntu:16.04
     # Tidy up
     rm -rf /tmp/*
 
+    
 %environment
     export LANG=en_US.UTF-8
     export LANGUAGE=en_US:en
