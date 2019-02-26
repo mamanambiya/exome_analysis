@@ -58,6 +58,7 @@ From: ubuntu:16.04
     conda config --add channels r
     conda install -y vcftools bcftools htslib samtools plink2
 
+
     # Tidy up
     rm -rf /tmp/*
 
