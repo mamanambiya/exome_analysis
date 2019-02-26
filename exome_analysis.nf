@@ -278,7 +278,7 @@ process smartpca_group {
             numoutevec:      5
             numoutlieriter:  0
             familynames:     NO
-            grmoutname:      output.pca_EIGENSTRAT_grmjunk" > ${group}.EIGENSTRAT.par
+            grmoutname:      ${group}.evec_grmjunk" > ${group}.EIGENSTRAT.par
             rm -rf ${group}.{ped,map}
         else
             touch ${group_eval}
