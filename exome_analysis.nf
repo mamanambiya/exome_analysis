@@ -120,6 +120,7 @@ process split_dataset_pop {
         """
         grep ${pop} ${dataset_sample} | awk '{print \$1}' > ${pop_sample}
         ## Keep only samples for population and Recalculate AC, AN, AF
+        tabix ${dataset_chrm_vcf}
         bcftools view \
             --samples-file ${pop_sample} \
             ${dataset_chrm_vcf} | \
