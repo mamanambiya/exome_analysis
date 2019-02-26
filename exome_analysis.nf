@@ -245,6 +245,46 @@ process group_vcf_to_plink {
         """
 }
 
+"""
+Step: Convert from VCF to plink for PCA analysis
+"""
+process smartpca_group {
+    tag "smartpca_group_${group}"
+    label "medmem"
+//    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
+    input:
+        set group, file(plink_bed), file(plink_bim), file(plink_fam) into group_vcf_to_plink
+    output:
+        set group, file(plink_bed), file(plink_bim), file(plink_fam) into smartpca_group
+    script:
+        group_evec = "${group}_pruned.evec"
+        group_eval = "${group}_pruned.eval"
+        group_pca = "${group}_pruned.pca"
+        """
+        nblines=\$(zcat ${group_vcf} | grep -v '^#' | wc -l)
+        if (( \$nblines > 0 ))
+        then
+            plink2 \
+                --vcf ${group_vcf} \
+                --indep-pairwise 20 5 0.5 \
+                --allow-no-sex \
+                --make-bed \
+                --snps-only --biallelic-only strict \
+                --out ${group}
+            plink2 \
+                --vcf ${group_vcf} \
+                --extract ${group}.prune.in \
+                --make-bed --snps-only --biallelic-only strict \
+                --out ${group}_pruned
+            rm -rf ${group}.{bed,bim,fam}
+        else
+            touch ${plink_bed}
+            touch ${plink_bim}
+            touch ${plink_fam}
+        fi
+        """
+}
+
 //
 //'''
 //Step: Prepare all data to be used
