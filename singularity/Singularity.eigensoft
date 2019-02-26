@@ -52,7 +52,7 @@ From: ubuntu:16.04
     #ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
     #echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
     #echo "conda activate base" >> ~/.bashrc
-    export PATH="/opt/conda/bin:$PATH"
+
 
     conda config --add channels bioconda
     conda config --add channels r
@@ -67,3 +67,4 @@ From: ubuntu:16.04
     export LANG=en_US.UTF-8
     export LANGUAGE=en_US:en
     export LC_ALL=C.UTF-8
+    export PATH="/opt/conda/bin:$PATH"
