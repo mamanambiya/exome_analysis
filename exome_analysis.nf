@@ -283,7 +283,7 @@ process smartpca_group {
             ## Run smartpca
             smartpca \
                     -p ${group}.EIGENSTRAT.par \
-                    > "+params.log_EIGENSTRAT
+                    > ${group}.EIGENSTRAT.log
             rm -rf ${group}.{ped,map}
         else
             touch ${group_eval}
