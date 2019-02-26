@@ -268,6 +268,17 @@ process smartpca_group {
                 --allow-no-sex \
                 --recode \
                 --out ${group}
+            echo -e \
+            "genotypename:    ${group}.ped
+            snpname:         ${group}.map
+            indivname:       ${group_fam}
+            evecoutname:     ${group}.evec
+            evaloutname:     ${group}.eval
+            altnormstyle:    NO
+            numoutevec:      5
+            numoutlieriter:  0
+            familynames:     NO
+            grmoutname:      output.pca_EIGENSTRAT_grmjunk" > ${group}.EIGENSTRAT.par
             rm -rf ${group}.{ped,map}
         else
             touch ${group_eval}
