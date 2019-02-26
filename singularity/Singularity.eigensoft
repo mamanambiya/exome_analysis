@@ -54,8 +54,9 @@ From: ubuntu:16.04
     #echo "conda activate base" >> ~/.bashrc
     export PATH="/opt/conda/bin:$PATH"
 
-    /opt/conda/bin/conda config --add channels
-    conda install -y -c bioconda vcftools bcftools htslib samtools plink2
+    conda config --add channels bioconda
+    conda config --add channels r
+    conda install -y vcftools bcftools htslib samtools plink2
 
     # Tidy up
     rm -rf /tmp/*
