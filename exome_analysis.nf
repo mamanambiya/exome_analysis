@@ -264,7 +264,7 @@ process smartpca_group {
         if (( \$nblines > 0 ))
         then
             plink2 \
-                --bfile ${group_bed} \
+                --bfile ${group_bed.baseName} \
                 --allow-no-sex \
                 --recode \
                 --out ${group}
