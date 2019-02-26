@@ -253,7 +253,7 @@ process smartpca_group {
     label "medmem"
 //    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
     input:
-        set group, file(group_bed), file(group_bim), file(group_fam) into group_vcf_to_plink
+        set group, file(group_bed), file(group_bim), file(group_fam) from group_vcf_to_plink
     output:
         set group, file(group_bed), file(group_bim), file(group_fam) into smartpca_group
     script:
