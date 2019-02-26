@@ -268,6 +268,7 @@ process smartpca_group {
                 --allow-no-sex \
                 --recode \
                 --out ${group}
+            ## Create parameter file for smartpca
             echo -e \
             "genotypename:    ${group}.ped
             snpname:         ${group}.map
@@ -279,6 +280,10 @@ process smartpca_group {
             numoutlieriter:  0
             familynames:     NO
             grmoutname:      ${group}.evec_grmjunk" > ${group}.EIGENSTRAT.par
+            ## Run smartpca
+            smartpca \
+                    -p ${group}.EIGENSTRAT.par \
+                    > "+params.log_EIGENSTRAT
             rm -rf ${group}.{ped,map}
         else
             touch ${group_eval}
