@@ -147,11 +147,7 @@ process concat_dataset_pop {
         """
         bcftools concat \
             ${vcfs.join(' ')} \
-            -Oz -o ${pop}.tmp3.vcf.gz
-        bcftools +fixref \
-            ${pop}.tmp3.vcf.gz \
-            -Oz -o ${pop}.tmp1.vcf.gz -- \
-            -f ${params.ref_genome} -m flip -d
+            -Oz -o ${pop}.tmp1.vcf.gz
         ## Recalculate AC, AN, AF
         bcftools +fill-tags ${pop}.tmp1.vcf.gz -Oz -o ${pop}.tmp2.vcf.gz
         bcftools sort ${pop}.tmp2.vcf.gz -Oz -o ${vcf_out}
