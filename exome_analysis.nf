@@ -127,7 +127,11 @@ process split_dataset_pop {
         bcftools +fill-tags | \
         bcftools annotate \
             --set-id +'%CHROM\\_%POS\\_%REF\\_%ALT' | \
-            bgzip -c > ${pop_chrm_vcf}
+            bgzip -c > ${pop}.tmp3.vcf.gz
+        bcftools +fixref \
+            ${pop}.tmp3.vcf.gz \
+            -Oz -o ${pop_chrm_vcf} -- \
+            -f ${params.ref_genome} -m flip -d
         """
 }
 
