@@ -181,7 +181,9 @@ params.dataset_groups.each{ dataset_group ->
 
     }
 }
-
+"""
+Step: Merge populations into group
+"""
 process merge_pop_groups {
     tag "merge_pop_groups_${group}"
     label "medmem"
