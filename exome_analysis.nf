@@ -261,8 +261,8 @@ process smartpca_group {
     output:
         set group, file(group_evec), file(group_eval), file(group_grmjunk) into smartpca_group
     script:
-        group_evec = "${group}_pruned.pca.evec"
-        group_eval = "${group}_pruned.eval"
+        group_evec = "${group}.evec"
+        group_eval = "${group}.eval"
         group_grmjunk = "${group}.evec_grmjunk"
         """
         nblines=\$(cat ${group_bim} | grep -v '^#' | wc -l)
@@ -278,8 +278,8 @@ process smartpca_group {
             "genotypename:    ${group}.ped
             snpname:         ${group}.map
             indivname:       ${group_fam}
-            evecoutname:     ${group}.evec
-            evaloutname:     ${group}.eval
+            evecoutname:     ${group_evec}
+            evaloutname:     ${group_eval}
             altnormstyle:    NO
             numoutevec:      5
             numoutlieriter:  0
