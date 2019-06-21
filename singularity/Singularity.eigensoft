@@ -37,6 +37,8 @@ From: ubuntu:16.04
          libopenblas-base \
          libopenblas-dev \
          liblapacke-dev \
+         libfontconfig1 \
+         libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
     # Compile EIG
