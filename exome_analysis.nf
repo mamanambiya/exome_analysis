@@ -113,11 +113,13 @@ process split_dataset_pop {
     input:
         set dataset, pop, chrm, file(dataset_chrm_vcf), file(dataset_sample) from dataset_files_pop
     output:
-        set pop, chrm, file(pop_chrm_vcf), file(pop_sample), dataset into split_dataset_pop,split_dataset_pop_combine
+        set pop, chrm, file(pop_chrm_vcf), file(pop_sample_update), dataset into split_dataset_pop,split_dataset_pop_combine
     script:
         pop_chrm_vcf = "${pop}_${dataset}_chr${chrm}.vcf.gz"
         pop_sample = "${pop}.sample"
+        pop_sample_update = "${pop}_update.sample"
         """
+        grep ${pop} ${dataset_sample} > ${pop_sample_update}
         grep ${pop} ${dataset_sample} | awk '{print \$1}' > ${pop_sample}
         ## Keep only samples for population and Recalculate AC, AN, AF
         tabix ${dataset_chrm_vcf}
@@ -181,6 +183,8 @@ params.dataset_groups.each{ dataset_group ->
 
     }
 }
+
+
 """
 Step: Merge populations into group
 """
@@ -219,7 +223,7 @@ process group_vcf_to_plink {
     input:
         set group, file(group_vcf), file(group_sample) from merge_pop_groups
     output:
-        set group, file(plink_bed), file(plink_bim), file(plink_fam) into group_vcf_to_plink
+        set group, file(plink_bed), file(plink_bim), file(plink_fam), file(group_sample) into group_vcf_to_plink
     script:
         plink_bed = "${group}_pruned.bed"
         plink_bim = "${group}_pruned.bim"
@@ -250,16 +254,16 @@ process group_vcf_to_plink {
 }
 
 """
-Step: Convert from VCF to plink for PCA analysis
+Step: Run Smartpca PCA analysis for group
 """
 process smartpca_group {
     tag "smartpca_group_${group}"
-    label "smartpca"
+    label "medmem"
 //    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
     input:
-        set group, file(group_bed), file(group_bim), file(group_fam) from group_vcf_to_plink
+        set group, file(group_bed), file(group_bim), file(group_fam), file(group_sample) from group_vcf_to_plink
     output:
-        set group, file(group_evec), file(group_eval), file(group_grmjunk) into smartpca_group
+        set group, file(group_evec), file(group_eval), file(group_grmjunk), file(group_sample) into smartpca_group
     script:
         group_evec = "${group}.evec"
         group_eval = "${group}.eval"
@@ -294,6 +298,43 @@ process smartpca_group {
             touch ${group_eval}
         fi
         """
+}
+
+
+"""
+Step: Add group to evec file from smartpca
+"""
+process update_evec {
+    tag "update_evec_${group}"
+    label "medmem"
+//    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
+    input:
+        set group, file(group_evec), file(group_eval), file(group_grmjunk), file(group_sample) from smartpca_group
+    output:
+        set group, file(group_evec_update), file(group_eval), file(group_grmjunk), file(group_sample) into update_evec
+    script:
+        group_evec_update = "${file(group_evec).baseName}_update.evec"
+        evec_file = group_evec
+        evec_out = group_evec_update
+        annot_file = group_sample
+        template "update_evec.py"
+}
+
+"""
+Step: Plot PCA analysis for group
+"""
+process plot_pca_group {
+    tag "plot_pca_group_${group}"
+    label "medmem"
+//    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
+    input:
+        set group, file(group_evec), file(group_eval), file(group_grmjunk), file(group_sample) from update_evec
+    output:
+        set group, file(group_evec), file(group_eval), file(group_grmjunk), file(group_sample) into plot_pca_group
+    script:
+        output_pdf = "${group}.pdf"
+        input_evec = group_evec
+        template "plot_pca.R"
 }
 
 //
