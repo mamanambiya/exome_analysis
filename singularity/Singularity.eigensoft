@@ -63,7 +63,7 @@ From: ubuntu:16.04
     export PATH=/opt/miniconda2/bin:$PATH
     conda config --add channels bioconda
     conda config --add channels r
-    conda install -y vcftools bcftools htslib samtools plink2 snpeff snpsift r-ggplot2 r-dplyr
+    conda install -y vcftools bcftools htslib samtools plink2 snpeff snpsift r-ggplot2 r-dplyr r-cairo
 
     # Tidy up
     rm -rf /tmp/*
