@@ -62,7 +62,6 @@ From: ubuntu:16.04
         mv ${eagle}/eagle /usr/local/bin/ && \
         rm -rf ${eagle}
 
-
     # Install conda
     wget --quiet https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
     /bin/bash ~/miniconda.sh -b -p /opt/miniconda2 && \
