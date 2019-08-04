@@ -49,12 +49,13 @@ RUN export PATH=/opt/miniconda2/bin:$PATH && \
     conda config --add channels bioconda && \
     conda config --add channels r && \
     conda install -y vcftools bcftools htslib samtools bedtools plink2 snpeff snpsift && \
-    conda install r-base=3.4.1 r-ggplot2 r-dplyr r-reshape2 r-data.table r-cairo r-optparse r-tidyr && \
-    conda install -c conda-forge r-sm r-ggsci
+    conda install r-base=3.4.1 r-ggplot2 r-dplyr r-reshape2
+    #r-cairo r-optparse r-tidyr && \
+    #conda install -c conda-forge r-sm r-ggsci
 
 # Compile EIG
-RUN git clone --depth 1 --branch master https://github.com/DReichLab/EIG /tmp/EI && \
-    cd /tmp/EIG/sr && \
+RUN git clone --depth 1 --branch master https://github.com/DReichLab/EIG /tmp/EIG && \
+    cd /tmp/EIG/src && \
     make clobber OPENBLAS=/opt/openblas LDLIBS="-llapacke" && \
     make install OPENBLAS=/opt/openblas LDLIBS="-llapacke"  && \
     mv ../bin/* /usr/local/bin
