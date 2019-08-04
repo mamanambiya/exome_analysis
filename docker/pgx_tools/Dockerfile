@@ -88,4 +88,6 @@ RUN useradd --create-home --shell /bin/bash ubuntu && \
 
 USER ubuntu
 
+ENV PATH=/opt/miniconda2/bin:$PATH
+
 CMD ["/bin/bash","-i"]
