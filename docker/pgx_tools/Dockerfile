@@ -49,7 +49,7 @@ RUN export PATH=/opt/miniconda2/bin:$PATH && \
     conda config --add channels bioconda && \
     conda config --add channels r && \
     conda install -y vcftools bcftools htslib samtools bedtools plink2 snpeff snpsift && \
-    conda install r-base=3.4.1 r-ggplot2 r-dplyr r-reshape2 data.table r-cairo sm optparse ggsci tidyr
+    conda install r-base=3.4.1 r-ggplot2 r-dplyr r-reshape2 r-data.table r-cairo r-sm r-optparse r-ggsci r-tidyr
 
 # Compile EIG
 RUN git clone --depth 1 --branch master https://github.com/DReichLab/EIG /tmp/EI && \
