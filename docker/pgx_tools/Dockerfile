@@ -14,7 +14,8 @@ MAINTAINER Mamana Mbiyavanga "mamana.mbiyavanga@uct.ac.za"
 # Install Basic tools
 
 # Install wget
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && \
+    apt-get install -y \
     autoconf \
     build-essential \
     git \
@@ -34,7 +35,7 @@ RUN apt-get update && apt-get install -y \
     libfontconfig1 \
     libxi6 \
     libxrender1 \
-    libxext6 \
+    libxext6 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
