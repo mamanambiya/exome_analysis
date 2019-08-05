@@ -35,23 +35,66 @@ RUN apt-get update && \
     libfontconfig1 \
     libxi6 \
     libxrender1 \
-    libxext6 && \
+    libxext6 \
+    r-base && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install conda
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
-    /bin/bash ~/miniconda.sh -b -p /opt/miniconda2 && \
-    rm ~/miniconda.sh
+# Install snpeff
+# Install snpsift
+# r-base r-ggplot2 r-dplyr r-reshape2
+#r-cairo r-optparse r-tidyr && \
+#conda install -c conda-forge r-sm r-ggsci
 
-# use conda to install some bioinfo tools
-RUN export PATH=/opt/miniconda2/bin:$PATH && \
-    conda config --add channels bioconda && \
-    conda config --add channels r && \
-    conda install -y vcftools bcftools htslib samtools bedtools plink2 snpeff snpsift && \
-    conda install r-base r-ggplot2 r-dplyr r-reshape2
-    #r-cairo r-optparse r-tidyr && \
-    #conda install -c conda-forge r-sm r-ggsci
+# Install htslib
+RUN wget https://github.com/samtools/htslib/releases/download/1.9/htslib-1.9.tar.bz2 && \
+    tar -xvf htslib-1.9.tar.bz2 && \
+    cd htslib-1.9 && \
+    ./configure --prefix=/usr/local && \
+    make && \
+    make install && \
+    cd .. && rm -rf htslib-1.9*
+
+# Install samtools
+RUN wget https://github.com/samtools/samtools/releases/download/1.9/samtools-1.9.tar.bz2 && \
+    tar -xvf samtools-1.9.tar.bz2 && \
+    cd samtools-1.9 && \
+    ./configure --prefix=/usr/local && \
+    make && \
+    make install && \
+    cd .. && rm -rf samtools-1.9*
+
+# Install VCFTools
+RUN wget https://github.com/vcftools/vcftools/releases/download/v0.1.16/vcftools-0.1.16.tar.gz && \
+    tar -xvf vcftools-0.1.16.tar.gz && \
+    cd vcftools-0.1.16 && \
+    ./configure && \
+    make && \
+    make install
+
+# Install bcftools
+RUN wget https://github.com/samtools/bcftools/releases/download/1.9/bcftools-1.9.tar.bz2 && \
+  tar -xvf bcftools-1.9.tar.bz2 && \
+  cd bcftools-1.9 && \
+  ./configure --prefix=/usr/local && \
+  make && \
+  make install && \
+  cd .. && rm -rf bcftools-1.9*
+
+# Install bedtools
+RUN wget https://github.com/arq5x/bedtools2/releases/download/v2.28.0/bedtools-2.28.0.tar.gz && \
+    tar -zxvf bedtools-2.28.0.tar.gz && \
+    cd bedtools2 && \
+    make && \
+    mv bin/bedtools /usr/local/bin/ && \
+    cd .. && rm -r bedtools2
+
+# Install PLINK2
+# there is an undocumented stable url (without the date)
+RUN wget http://s3.amazonaws.com/plink2-assets/plink2_linux_x86_64_latest.zip -O plink.zip && \
+  unzip plink.zip -d /usr/local/bin/ && \
+  rm -f plink.zip
+
 
 # Compile EIG
 RUN git clone --depth 1 --branch master https://github.com/DReichLab/EIG /tmp/EIG && \
@@ -80,6 +123,17 @@ RUN wget https://data.broadinstitute.org/alkesgroup/Eagle/downloads/Eagle_v2.4.1
     mv Eagle_v2.4.1/eagle /usr/local/bin/ && \
     rm -rf Eagle_v2.4.1
 
+# Install snpEff
+# Setup ENV variables
+ENV \
+  SNPEFF_VERSION=latest\
+  SNPEFF_HOME=/opt/snpEff
+RUN \
+  wget --quiet -O snpEff_${SNPEFF_VERSION}_core.zip \
+    http://downloads.sourceforge.net/project/snpeff/snpEff_${SNPEFF_VERSION}_core.zip && \
+    unzip snpEff_${SNPEFF_VERSION}_core.zip -d /opt/ && \
+    rm snpEff_${SNPEFF_VERSION}_core.zip
+
 # Tidy up
 RUN rm -rf /tmp/*
 
@@ -88,6 +142,6 @@ RUN useradd --create-home --shell /bin/bash ubuntu && \
 
 USER ubuntu
 
-ENV PATH=/opt/miniconda2/bin:$PATH
+#ENV PATH=/opt/miniconda2/bin:$PATH
 
 CMD ["/bin/bash","-i"]
