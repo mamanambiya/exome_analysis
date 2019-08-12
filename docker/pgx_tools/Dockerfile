@@ -36,12 +36,11 @@ RUN apt-get update && \
     libxi6 \
     libxrender1 \
     libxext6 \
+    openjdk-8-jdk \
     r-base && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install snpeff
-# Install snpsift
 # r-base r-ggplot2 r-dplyr r-reshape2
 #r-cairo r-optparse r-tidyr && \
 #conda install -c conda-forge r-sm r-ggsci
@@ -127,7 +126,7 @@ RUN wget https://data.broadinstitute.org/alkesgroup/Eagle/downloads/Eagle_v2.4.1
 # Setup ENV variables
 ENV \
   SNPEFF_VERSION=latest\
-  SNPEFF_HOME=/opt/snpEff
+  SNPEFF_HOME=/usr/local/bin/snpEff
 RUN \
   wget --quiet -O snpEff_${SNPEFF_VERSION}_core.zip \
     http://downloads.sourceforge.net/project/snpeff/snpEff_${SNPEFF_VERSION}_core.zip && \
@@ -142,6 +141,6 @@ RUN useradd --create-home --shell /bin/bash ubuntu && \
 
 USER ubuntu
 
-#ENV PATH=/opt/miniconda2/bin:$PATH
+ENV PATH=/usr/local/bin/snpEff/scripts:$PATH
 
 CMD ["/bin/bash","-i"]

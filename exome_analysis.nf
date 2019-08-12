@@ -52,31 +52,31 @@ dataset_pops = [:]
 params.POPS.each { entry ->
     dataset_pops[entry.key] = entry.value.split(',')
 }
-dataset_files_annot = params.dataset_files_annot.split(';')
+dataset_files_annot = params.dataset_files_annot.split(',')
 dataset_files = []
 dataset_files_all = []
 dataset_files_ = [:]
-dataset_files_only = []
+dataset_files_only = [] // Full dataset, AIBSST only for now
 dataset_files_chr = []
 dataset_files_pop = []
 params.dataset_full_files.each { dataset ->
     dataset_files_only << [dataset.key, file(params.dataset_full_files[dataset.key])]
 }
 params.dataset_files.each{ dataset ->
+    if (!(dataset.key in dataset_files_.keySet())){
+        dataset_files_[dataset.key] = []
+    }
     CHRMS.each { chrm ->
-        if (dataset.key in dataset_files_annot){
-            dataset_files << [dataset.key, chrm, file(sprintf(dataset.value, chrm))]
-            dataset_files_all << [dataset.key, chrm, file(params.dataset_full_files[dataset.key])]
-        }
-        if (!(dataset.key in dataset_files_.keySet())){
-            dataset_files_[dataset.key] = []
-        }
         dataset_chrm = file(sprintf(dataset.value, chrm))
         if(!file(dataset_chrm).exists()){
             System.err.println "File ${dataset_chrm} not found. Please check your config file."
             exit 1
         }
         else {
+            if (dataset.key in dataset_files_annot){
+                dataset_files << [dataset.key, chrm, dataset_chrm]
+                //dataset_files_all << [dataset.key, chrm, file(params.dataset_full_files[dataset.key])]
+            }
             dataset_files_[dataset.key] << dataset_chrm
             dataset_files_chr << dataset.key+"=="+dataset_chrm
             params.dataset_pops.each{ dataset_pops ->
@@ -99,7 +99,7 @@ params.dataset_files.each{ dataset ->
         }
     }
 }
-dataset_files = Channel.from(dataset_files)
+//dataset_files = Channel.from(dataset_files)
 dataset_files_chrs = Channel.from(dataset_files_all)
 dataset_files_only_cha = Channel.from(dataset_files_only)
 
@@ -119,16 +119,17 @@ process split_dataset_pop {
         pop_sample = "${pop}.sample"
         pop_sample_update = "${pop}_update.sample"
         """
-        grep ${pop} ${dataset_sample} > ${pop_sample_update}
+        grep ${pop} ${dataset_sample} | awk '{ \$2=\$2"\\t${dataset}"; print \$0}' > ${pop_sample_update}
         grep ${pop} ${dataset_sample} | awk '{print \$1}' > ${pop_sample}
         ## Keep only samples for population and Recalculate AC, AN, AF
         tabix ${dataset_chrm_vcf}
         bcftools view \
             --samples-file ${pop_sample} \
             ${dataset_chrm_vcf} | \
-        bcftools +fill-tags | \
         bcftools annotate \
+            -x INFO,^FORMAT \
             --set-id +'%CHROM\\_%POS\\_%REF\\_%ALT' | \
+        bcftools +fill-tags | \
             bgzip -c > ${pop}.tmp3.vcf.gz
         bcftools +fixref \
             ${pop}.tmp3.vcf.gz \
@@ -141,7 +142,6 @@ dataset_pop_combine = split_dataset_pop_combine.groupTuple()
 process concat_dataset_pop {
     tag "concat_dataset_${pop}_${dataset}"
     label "medmem"
-//    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
     input:
         set pop, chrms, vcfs, samples, datasets from dataset_pop_combine
     output:
@@ -190,14 +190,15 @@ Step: Merge populations into group
 """
 process merge_pop_groups {
     tag "merge_pop_groups_${group}"
-    label "medmem"
-//    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
+    label "extrabig"
     input:
         set group, pop_vcfs, pop_samples from dataset_pop_groups.values()
     output:
         set group, file(vcf_out), file(sample_out) into merge_pop_groups
+        set group, file(vcf_out_plink), file(sample_out) into merge_pop_groups_plink
     script:
         vcf_out = "${group}.vcf.gz"
+        vcf_out_plink = "${group}_plink.vcf.gz"
         sample_out = "${group}.sample"
         """
         bcftools merge \
@@ -206,11 +207,14 @@ process merge_pop_groups {
         ## Recalculate AC, AN, AF
         bcftools +fill-tags ${group}.tmp1.vcf.gz -Oz -o ${group}.tmp2.vcf.gz
         bcftools sort ${group}.tmp2.vcf.gz -Oz -o ${vcf_out}
-        bcftools index --tbi -f ${vcf_out}
+        bcftools annotate \
+            -x INFO,^FORMAT \
+            --set-id '%CHROM\\_%POS\\_%REF\\_%ALT' ${vcf_out} -Oz -o ${vcf_out_plink}
         cat ${pop_samples} > ${sample_out}
         rm ${group}.tmp*.vcf.gz
         """
 }
+
 
 
 """
@@ -218,10 +222,9 @@ Step: Convert from VCF to plink for PCA analysis
 """
 process group_vcf_to_plink {
     tag "group_vcf_to_plink_${group}"
-    label "medmem"
-//    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
+    label "extrabig"
     input:
-        set group, file(group_vcf), file(group_sample) from merge_pop_groups
+        set group, file(group_vcf), file(group_sample) from merge_pop_groups_plink
     output:
         set group, file(plink_bed), file(plink_bim), file(plink_fam), file(group_sample) into group_vcf_to_plink
     script:
@@ -234,7 +237,7 @@ process group_vcf_to_plink {
         then
             plink2 \
                 --vcf ${group_vcf} \
-                --indep-pairwise 20 5 0.5 \
+                --indep-pairwise 50 5 0.5 \
                 --allow-no-sex \
                 --make-bed \
                 --snps-only --biallelic-only strict \
@@ -253,12 +256,13 @@ process group_vcf_to_plink {
         """
 }
 
+
 """
 Step: Run Smartpca PCA analysis for group
 """
 process smartpca_group {
     tag "smartpca_group_${group}"
-    label "medmem"
+    label "extrabig"
 //    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
     input:
         set group, file(group_bed), file(group_bim), file(group_fam), file(group_sample) from group_vcf_to_plink
@@ -286,7 +290,7 @@ process smartpca_group {
             evaloutname:     ${group_eval}
             altnormstyle:    NO
             numoutevec:      5
-            numoutlieriter:  0
+            numoutlieriter:  2
             familynames:     NO
             grmoutname:      ${group_grmjunk}" > ${group}.EIGENSTRAT.par
             ## Run smartpca
@@ -320,47 +324,48 @@ process update_evec {
         template "update_evec.py"
 }
 
+
 """
 Step: Plot PCA analysis for group
 """
 process plot_pca_group {
     tag "plot_pca_group_${group}"
     label "medmem"
-//    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
+    publishDir "${params.work_dir}/REPORTS/PCA", mode:'copy', pattern: "*tiff"
     input:
         set group, file(group_evec), file(group_eval), file(group_grmjunk), file(group_sample) from update_evec
     output:
-        set group, file(group_evec), file(group_eval), file(group_grmjunk), file(group_sample) into plot_pca_group
+        set group, file(group_evec), file(group_sample), file("${output_pdf}*tiff") into plot_pca_group
     script:
-        output_pdf = "${group}.pdf"
+        output_pdf = "${group}"
         input_evec = group_evec
         template "plot_pca.R"
 }
 
-//
-//'''
-//Step: Prepare all data to be used
-//'''
-//process dataPreparation {
-//    tag "dataPrep"
-//    label "small"
-//    publishDir "${params.work_dir}/PGX_DATA", mode:'copy'
-//
-//    output:
-//        file("pgxClinicalrsID.txt") into clinVarData_all
-//    script:
-//        """
-//        # The clinicalAnnotations.csv was downloaded from PharmGKB on 03 July 2017
-//        # This was used to find rsIDs for genes in this study
-//
-//        # Select rsIDs from file and use this list to search annotated vcf
-//        # awk -F',' 'NR>1 {gsub(/"/, "", \$1); print \$1}' ${params.clinicalVariants_db} > pgxClinicalrsID.txt
-//        awk 'NR>1 {print \$1"\\t"\$2"\\t"\$3}' ${params.clinicalVariants_db} > pgxClinicalrsID.txt
-//        """
-//}
-//
-//
-//
+
+'''
+Step: Prepare all data to be used
+'''
+process dataPreparation {
+    tag "dataPrep"
+    label "small"
+    publishDir "${params.work_dir}/PGX_DATA", mode:'copy'
+
+    output:
+        file("pgxClinicalrsID.txt") into clinVarData_all
+    script:
+        """
+        # The clinicalAnnotations.csv was downloaded from PharmGKB on 03 July 2017
+        # This was used to find rsIDs for genes in this study
+
+        # Select rsIDs from file and use this list to search annotated vcf
+        # awk -F',' 'NR>1 {gsub(/"/, "", \$1); print \$1}' ${params.clinicalVariants_db} > pgxClinicalrsID.txt
+        awk 'NR>1 {print \$1"\\t"\$2"\\t"\$3}' ${params.clinicalVariants_db} > pgxClinicalrsID.txt
+        """
+}
+
+
+
 //
 //"""
 //Step 1.2: Annotate original VCFs AIBST using snpEff
@@ -387,14 +392,14 @@ process plot_pca_group {
 //        bgzip -f ${vcf_out}
 //        """
 //}
-//
+
 //
 //"""
 //Step 1: Split VCF AIBST
 //"""
 //process split_vcf{
 //    tag "split_vcf_${dataset}_${chrm}"
-//    label "small"
+//    label "bigmem"
 //    publishDir "${params.work_dir}/data/${dataset}/VCF/CHRS", mode:'copy'
 //    input:
 //        set val(dataset), val(chrm), file(vcf_file) from dataset_files_chrs
@@ -412,278 +417,285 @@ process plot_pca_group {
 //        bcftools index --tbi ${vcf_out}
 //        """
 //}
-//
-////
-////"""
-////Step 2: Filter Biallelic sites only in VCFs AIBST
-////"""
-////process biall_dataset {
-////    tag "biall_dataset_${file(vcf_file.baseName).baseName}"
-////    label "small"
-////    publishDir "${params.work_dir}/data/${dataset}/VCF/CHRS", mode: 'symlink'
-////    input:
-////        set val(dataset), val(chrm), file(vcf_file), file(vcf_file_tbi) from split_vcf_1
-////    output:
-////        set val(dataset), val(chrm), file(vcf_out), file("${vcf_out}.tbi") into biall_dataset,biall_dataset_1,biall_dataset_2
-////    script:
-////        vcf_out = "${file(vcf_file.baseName).baseName}_biall.vcf.gz"
-////        """
-////        bcftools \
-////            view -m2 -M2 -v snps \
-////            ${vcf_file} \
-////            -Oz -o ${vcf_out}
-////        bcftools index --tbi -f ${vcf_out}
-////        """
-////}
-////
-////
-////"""
-////Step 3: Phase VCFs AIBST using eagle
-////"""
-////process phase_dataset {
-////    tag "phase_dataset_${file(vcf_file.baseName).baseName}"
-////    label "small"
-////    publishDir "${params.work_dir}/data/${dataset}/VCF/CHRS", mode: 'copy'
-////    input:
-////        set val(dataset), val(chrm), file(vcf_file), file(vcf_file_tbi) from biall_dataset_1
-////    output:
-////        set val(dataset), val(chrm), file("${vcf_out}.vcf.gz"), file("${vcf_out}.vcf.gz.tbi") into phase_dataset,phase_dataset_1
-////    script:
-////        vcf_out = "${file(vcf_file.baseName).baseName}_phased"
-////        """
-////        eagle \
-////            --vcf=${vcf_file} \
-////            --geneticMapFile=${params.genetic_map} \
-////            --chrom=${chrm} \
-////            --vcfOutFormat=z \
-////            --outPrefix=${vcf_out} > /dev/null 2>&1
-////        bcftools index --tbi -f ${vcf_out}.vcf.gz
-////        """
-////}
-//
-//
-//"""
-//Step 4: Annotate VCFs AIBST using snpEff
-//"""
-//process annotate_dataset_snpeff{
-//    tag "snpeff_${file(vcf_file.baseName).baseName}"
-//    label "bigmem"
-//    publishDir "${params.work_dir}/data/${dataset}/ANN/CHRS", mode:'symlink'
-//    input:
-////        set val(dataset), val(chrm), file(vcf_file), file(vcf_filetbi) from phase_dataset_1
-//        set val(dataset), val(chrm), file(vcf_file), file(vcf_filetbi) from split_vcf_2
-//    output:
-//        set val(dataset), val(chrm), file("${vcf_out}.gz"), file("${vcf_out}.gz.tbi") into annotate_dataset_snpeff
-//    script:
-//        vcf_out = "${file(vcf_file.baseName).baseName}_snpeff.vcf"
-//        """
-//        snpEff \
-//            ${params.snpEff_human_db} -lof \
-//            -stats ${dataset}_snpeff.html \
-//            -csvStats ${dataset}_snpeff.csv \
-//            -dataDir ${params.snpEff_database} \
-//            ${vcf_file} -v > ${vcf_out}
-//        bgzip -f ${vcf_out}
-//        bcftools index --tbi -f ${vcf_out}.gz
-//        """
-//}
-//annotate_dataset_snpeff.into{ annotate_dataset_snpeff; annotate_dataset_snpeff_sub}
-//
-//"""
-//Step 5: Annotate dbSNP IDs using snpSift
-//"""
-//annotate_dataset_snpeff.into { annotate_dataset_snpeff; annotate_dataset_snpeff_1 }
-//process annotate_dataset_dbsnp{
-//    tag "dbSNP_${file(vcf_file.baseName).baseName}"
-//    label "small"
-//    publishDir "${params.work_dir}/data/${dataset}/ANN/CHRS", mode:'symlink'
-//    input:
-//        set val(dataset), val(chrm), file(vcf_file), file(vcf_file_tbi) from annotate_dataset_snpeff_1
-//    output:
-//        set val(dataset), val(chrm), file("${vcf_out}.gz"), file("${vcf_out}.gz.tbi") into annotate_dataset_dbsnp,annotate_dataset_dbsnp_6
-//    script:
-//        vcf_out = "${file(vcf_file.baseName).baseName}_dbsnp.vcf"
-//        """
-//        SnpSift \
-//            annotate \
-//            ${params.snpEff_dbsnp_vcf} \
-//            -dataDir ${params.snpEff_database} \
-//            ${vcf_file} > ${vcf_out} -v
-//        bgzip -f ${vcf_out}
-//        bcftools index --tbi -f ${vcf_out}.gz
-//        """
-//}
-//annotate_dataset_dbsnp.into{ annotate_dataset_dbsnp; annotate_dataset_dbsnp_sub}
-//
-//
-//"""
-//Step 6: Annotate GWAS Catalogue using snpSift
-//"""
-//annotate_dataset_dbsnp.into {annotate_dataset_dbsnp; annotate_dataset_dbsnp_1}
-//process annotate_dataset_gwascat{
-//    tag "gwascat_${file(vcf_file.baseName).baseName}"
-//    label "small"
-//    publishDir "${params.work_dir}/data/${dataset}/ANN", mode:'symlink'
-//
-//    input:
-//        set val(dataset), val(chrm), file(vcf_file), file(vcf_file_tbi) from annotate_dataset_dbsnp_1
-//    output:
-//        set val(dataset), val(chrm), file("${vcf_out}.gz"), file("${vcf_out}.gz.tbi") into annotate_dataset_gwascat
-//    script:
-//        vcf_out = "${file(vcf_file.baseName).baseName}_gwascat.vcf"
-//        """
-//        SnpSift \
-//            gwasCat \
-//            -db ${params.gwascat_b37} \
-//            ${vcf_file} \
-//            -v \
-//            -dataDir ${params.snpEff_database} \
-//            > ${vcf_out}
-//        bgzip -f ${vcf_out}
-//        bcftools index --tbi -f ${vcf_out}.gz
-//        """
-//}
-//annotate_dataset_gwascat.into{ annotate_dataset_gwascat; annotate_dataset_gwascat_sub}
-//
-//
-//'''
-//Step 7: Annotate with snpEff using clinvar
-//'''
-//annotate_dataset_gwascat.into { annotate_dataset_gwascat; annotate_dataset_gwascat_1}
-//process annotate_dataset_clinvar {
-//    tag "clinvar_${file(vcf_file.baseName).baseName}"
-//    label "small"
-//    time = { 6.hour * task.attempt }
-//    publishDir "${params.work_dir}/data/${dataset}/ANN/CHRS", mode:'symlink'
-//    input:
-//        set val(dataset), val(chrm), file(vcf_file), file(vcf_file_tbi) from annotate_dataset_gwascat_1
-//    output:
-//        set val(dataset), val(chrm), file("${vcf_out}.gz"), file("${vcf_out}.gz.tbi") into annotate_dataset_clinvar
-//    script:
-//        vcf_out = "${file(vcf_file.baseName).baseName}_clinvar.vcf"
-//        """
-//        SnpSift \
-//            annotate \
-//            ${params.clinvar} \
-//            ${vcf_file} \
-//            -v \
-//            -dataDir ${params.snpEff_database} \
-//            > ${vcf_out}
-//        bgzip -f ${vcf_out}
-//        bcftools index --tbi -f ${vcf_out}.gz
-//        """
-//}
-//
-//
-//'''
-//Step 8: Annotate with snpEff using cosmic
-//'''
-//annotate_dataset_clinvar.into { annotate_dataset_clinvar; annotate_dataset_clinvar_2}
-//process annotate_cosmic_baylor {
-//    tag "cosmic_${file(vcf_file.baseName).baseName}"
-//    label "small"
-//    time { 6.hour * task.attempt }
-//    publishDir "${params.work_dir}/data/${dataset}/ANN/CHRS", mode:'symlink'
-//    input:
-//        set val(dataset), val(chrm), file(vcf_file), file(vcf_file_tbi) from annotate_dataset_clinvar_2
-//    output:
-//        set val(dataset), val(chrm), file("${vcf_out}.gz"), file("${vcf_out}.gz.tbi") into annotate_dataset_cosmic
-//    script:
-//        vcf_out = "${file(vcf_file.baseName).baseName}_cosmic.vcf"
-//        """
-//        SnpSift \
-//            annotate \
-//            ${params.cosmic} \
-//            ${vcf_file} \
-//            -v \
-//            -dataDir ${params.snpEff_database} \
-//            > ${vcf_out}
-//        bgzip -f ${vcf_out}
-//        bcftools index --tbi -f ${vcf_out}.gz
-//        """
-//}
-//annotate_dataset_cosmic.into {annotate_dataset_cosmic; annotate_dataset_cosmic_sub}
-//
-//
-//'''
-//Step 9.1: combine frequency annotation files AGVP, SAHGP, TRYPANOGEN, gnomAD, ExAC per chromosome
-//'''
-//mafs_annotations = params.mafs_annotations
-//mafs_annotations_data = []
-//mafs_annotations.each{ dataset ->
-//    CHRMS.each{ chrm ->
-//        mafs_annotations_data << [dataset.key, chrm, file(dataset.value)]
-//    }
-//}
-//mafs_annotations_data_cha = Channel.from(mafs_annotations_data)
-//
-//process mafs_annot_chrs {
-//    tag "mafs_annot_${mafs_dataset}_${chrm}"
-//    label "small"
-//    publishDir "${params.reference_dir}/pop_mafs/${mafs_dataset}", mode:'copy'
-//    input:
-//        set val(mafs_dataset), val(chrm), file(mafs_file) from mafs_annotations_data_cha
-//    output:
-//        set val(mafs_dataset), val(chrm), file(tsv_out) into mafs_annot_dataset
-//    script:
-//        tsv_out = "${mafs_dataset}_chr${chrm}_mafs.tsv"
-//        """
-//        ${params.homedir}/templates/annotateVCFwithTSV.py \
-//            --inTSV ${mafs_file} \
-//            --chrm ${chrm} \
-//            --outTSV ${tsv_out}
-//        """
-//}
-//
-//
-//'''
-//Step 9.2: Annotate whole merge database with mafs from AGVP, SAHGP, TRYPANOGEN, gnomAD, ExAC
-//'''
-//mafs_annot_dataset.into { mafs_annot_dataset; mafs_annot_dataset_1 }
-//annotate_dataset_cosmic.into { annotate_dataset_cosmic; annotate_dataset_cosmic_1}
-//mafs_annot_dataset_list = mafs_annot_dataset_1.toSortedList().val
-//annotate_dataset_cosmic_list = annotate_dataset_cosmic_1.toSortedList().val
-//annotate_dataset_cosmic_2 = [:]
-//annotate_dataset_cosmic_list.each{ dataset, chrm, vcf_file, vcf_file_tbi ->
-//    annotate_dataset_cosmic_2[chrm] = [dataset, chrm, file(vcf_file)]
-//    annot = []
-//    datasets = []
-//    mafs_annot_dataset_list.each{ mafs_dataset, chr, mafs_file ->
-//        if (chrm == chr){
-//            annot << file(mafs_file)
-//            if( mafs_dataset.size() >= 6 ) {
-//                mafs_dataset = mafs_dataset[0..5]
-//            }
-//            datasets << mafs_dataset
-//        }
-//    }
-//    annotate_dataset_cosmic_2[chrm] << annot.join(';')
-//    annotate_dataset_cosmic_2[chrm] << datasets.join('-')
-//}
-//annotate_dataset_cosmic_2_cha = Channel.from(annotate_dataset_cosmic_2.values())
-//process annotate_mafs_dataset {
-//    tag "mafs_${file(vcf_file.baseName).baseName}"
-//    label "bigmem"
-//    publishDir "${params.work_dir}/data/${dataset}/ALL/ANN/CHRS", mode:'symlink'
-//    input:
-//        set val(dataset), val(chrm), file(vcf_file), val(mafs_files), val(mafs_dataset) from annotate_dataset_cosmic_2_cha
-//    output:
-//        set val(dataset),  val(chrm), file("${vcf_out}.gz"), file("${vcf_out}.gz.tbi") into annotate_mafs_dataset
-//    script:
-//        vcf_out = "${file(vcf_file.baseName).baseName}_mafs-${mafs_dataset}.vcf"
-//        """
-//        gunzip -c ${vcf_file} > ${vcf_file.baseName}
-//        ${params.homedir}/templates/annotateVCFwithTSV.py \
-//            --inVCF ${vcf_file.baseName} \
-//            --inTSV \'${mafs_files}\' \
-//            --outVCF ${vcf_out}
-//        bgzip -f ${vcf_out}
-//        bcftools index --tbi -f ${vcf_out}.gz
-//        rm -f ${vcf_file.baseName}
-//        """
-//}
+
+
+"""
+Step 2: Filter Biallelic sites only in VCFs AIBST
+"""
+process biall_dataset {
+    tag "biall_dataset_${file(vcf_file.baseName).baseName}"
+    label "small"
+    publishDir "${params.work_dir}/data/${dataset}/VCF/CHRS", mode: 'symlink'
+    input:
+        set val(dataset), val(chrm), file(vcf_file) from dataset_files
+    output:
+        set val(dataset), val(chrm), file(vcf_out), file("${vcf_out}.tbi") into biall_dataset,biall_dataset_1,biall_dataset_2
+    script:
+        vcf_out = "${file(vcf_file.baseName).baseName}_biall.vcf.gz"
+        """
+        tabix ${vcf_file}
+        bcftools \
+            view -m2 -M2 -v snps \
+            ${vcf_file} \
+            -Oz -o ${vcf_out}
+        bcftools index --tbi -f ${vcf_out}
+        """
+}
+
+
+"""
+Step 3: Phase VCFs AIBST using eagle
+"""
+process phase_dataset {
+    tag "phase_dataset_${file(vcf_file.baseName).baseName}"
+    label "small"
+    publishDir "${params.work_dir}/data/${dataset}/VCF/CHRS", mode: 'copy'
+    input:
+        set val(dataset), val(chrm), file(vcf_file), file(vcf_file_tbi) from biall_dataset_1
+    output:
+        set val(dataset), val(chrm), file("${vcf_out}.vcf.gz"), file("${vcf_out}.vcf.gz.tbi") into phase_dataset,phase_dataset_1
+    script:
+        vcf_out = "${file(vcf_file.baseName).baseName}_phased"
+        """
+        eagle \
+            --vcf=${vcf_file} \
+            --geneticMapFile=${params.genetic_map} \
+            --chrom=${chrm} \
+            --vcfOutFormat=z \
+            --outPrefix=${vcf_out} > /dev/null 2>&1
+        bcftools index --tbi -f ${vcf_out}.vcf.gz
+        """
+}
+
+
+"""
+Step 4: Annotate VCFs AIBST using snpEff
+"""
+process annotate_dataset_snpeff{
+    tag "snpeff_${file(vcf_file.baseName).baseName}"
+    label "bigmem"
+    publishDir "${params.work_dir}/data/${dataset}/ANN/CHRS", mode:'symlink'
+    input:
+        set val(dataset), val(chrm), file(vcf_file) from dataset_files
+    output:
+        set val(dataset), val(chrm), file("${vcf_out}.gz"), file("${vcf_out}.gz.tbi") into annotate_dataset_snpeff
+    script:
+        vcf_out = "${file(vcf_file.baseName).baseName}_snpeff.vcf"
+        """
+        snpEff -Xmx${task.memory.toGiga()}g \
+            ${params.snpEff_human_db} -lof \
+            -stats ${dataset}_snpeff.html \
+            -csvStats ${dataset}_snpeff.csv \
+            -dataDir ${params.snpEff_database} \
+            ${vcf_file} -v > ${vcf_out}
+        bgzip -f ${vcf_out}
+        bcftools index --tbi -f ${vcf_out}.gz
+        """
+}
+annotate_dataset_snpeff.into{ annotate_dataset_snpeff; annotate_dataset_snpeff_sub}
+
+"""
+Step 5: Annotate dbSNP IDs using snpSift
+"""
+annotate_dataset_snpeff.into { annotate_dataset_snpeff; annotate_dataset_snpeff_1 }
+process annotate_dataset_dbsnp{
+    tag "dbSNP_${file(vcf_file.baseName).baseName}"
+    label "small"
+    publishDir "${params.work_dir}/data/${dataset}/ANN/CHRS", mode:'symlink'
+    input:
+        set val(dataset), val(chrm), file(vcf_file), file(vcf_file_tbi) from annotate_dataset_snpeff_1
+    output:
+        set val(dataset), val(chrm), file("${vcf_out}.gz"), file("${vcf_out}.gz.tbi") into annotate_dataset_dbsnp,annotate_dataset_dbsnp_6
+    script:
+        vcf_out = "${file(vcf_file.baseName).baseName}_dbsnp.vcf"
+        """
+        SnpSift -Xmx${task.memory.toGiga()}g \
+            annotate \
+            ${params.snpEff_dbsnp_vcf} \
+            -dataDir ${params.snpEff_database} \
+            ${vcf_file} > ${vcf_out} -v
+        bgzip -f ${vcf_out}
+        bcftools index --tbi -f ${vcf_out}.gz
+        """
+}
+annotate_dataset_dbsnp.into{ annotate_dataset_dbsnp; annotate_dataset_dbsnp_sub}
+
+
+"""
+Step 6: Annotate GWAS Catalogue using snpSift
+"""
+annotate_dataset_dbsnp.into {annotate_dataset_dbsnp; annotate_dataset_dbsnp_1}
+process annotate_dataset_gwascat{
+    tag "gwascat_${file(vcf_file.baseName).baseName}"
+    label "small"
+    publishDir "${params.work_dir}/data/${dataset}/ANN", mode:'symlink'
+
+    input:
+        set val(dataset), val(chrm), file(vcf_file), file(vcf_file_tbi) from annotate_dataset_dbsnp_1
+    output:
+        set val(dataset), val(chrm), file("${vcf_out}.gz"), file("${vcf_out}.gz.tbi") into annotate_dataset_gwascat
+    script:
+        vcf_out = "${file(vcf_file.baseName).baseName}_gwascat.vcf"
+        """
+        SnpSift -Xmx${task.memory.toGiga()}g \
+            gwasCat \
+            -db ${params.gwascat_b37} \
+            ${vcf_file} \
+            -v \
+            -dataDir ${params.snpEff_database} \
+            > ${vcf_out}
+        bgzip -f ${vcf_out}
+        bcftools index --tbi -f ${vcf_out}.gz
+        """
+}
+annotate_dataset_gwascat.into{ annotate_dataset_gwascat; annotate_dataset_gwascat_sub}
+
+
+'''
+Step 7: Annotate with snpEff using clinvar
+'''
+annotate_dataset_gwascat.into { annotate_dataset_gwascat; annotate_dataset_gwascat_1}
+process annotate_dataset_clinvar {
+    tag "clinvar_${file(vcf_file.baseName).baseName}"
+    label "small"
+    time = { 6.hour * task.attempt }
+    publishDir "${params.work_dir}/data/${dataset}/ANN/CHRS", mode:'symlink'
+    input:
+        set val(dataset), val(chrm), file(vcf_file), file(vcf_file_tbi) from annotate_dataset_gwascat_1
+    output:
+        set val(dataset), val(chrm), file("${vcf_out}.gz"), file("${vcf_out}.gz.tbi") into annotate_dataset_clinvar
+    script:
+        vcf_out = "${file(vcf_file.baseName).baseName}_clinvar.vcf"
+        """
+        SnpSift -Xmx${task.memory.toGiga()}g \
+            annotate \
+            ${params.clinvar} \
+            ${vcf_file} \
+            -v \
+            -dataDir ${params.snpEff_database} \
+            > ${vcf_out}
+        bgzip -f ${vcf_out}
+        bcftools index --tbi -f ${vcf_out}.gz
+        """
+}
+
+
+'''
+Step 8: Annotate with snpEff using cosmic
+'''
+annotate_dataset_clinvar.into { annotate_dataset_clinvar; annotate_dataset_clinvar_2}
+process annotate_cosmic_baylor {
+    tag "cosmic_${file(vcf_file.baseName).baseName}"
+    label "small"
+    time { 6.hour * task.attempt }
+    publishDir "${params.work_dir}/data/${dataset}/ANN/CHRS", mode:'symlink'
+    input:
+        set val(dataset), val(chrm), file(vcf_file), file(vcf_file_tbi) from annotate_dataset_clinvar_2
+    output:
+        set val(dataset), val(chrm), file("${vcf_out}.gz"), file("${vcf_out}.gz.tbi") into annotate_dataset_cosmic
+    script:
+        vcf_out = "${file(vcf_file.baseName).baseName}_cosmic.vcf"
+        """
+        SnpSift -Xmx${task.memory.toGiga()}g \
+            annotate \
+            ${params.cosmic} \
+            ${vcf_file} \
+            -v \
+            -dataDir ${params.snpEff_database} \
+            > ${vcf_out}
+        bgzip -f ${vcf_out}
+        bcftools index --tbi -f ${vcf_out}.gz
+        """
+}
+annotate_dataset_cosmic.into {annotate_dataset_cosmic; annotate_dataset_cosmic_sub}
+
+
+'''
+Step 9.1: combine frequency annotation files AGVP, SAHGP, TRYPANOGEN, gnomAD, ExAC per chromosome
+'''
+mafs_annotations = params.mafs_annotations
+mafs_annotations_data = []
+mafs_annotations.each{ dataset ->
+    CHRMS.each{ chrm ->
+        mafs_annotations_data << [dataset.key, chrm, file(dataset.value)]
+    }
+}
+mafs_annotations_data_cha = Channel.from(mafs_annotations_data)
+
+process mafs_annot_chrs {
+    tag "mafs_annot_${mafs_dataset}_${chrm}"
+    label "small"
+    publishDir "${params.reference_dir}/pop_mafs/${mafs_dataset}", mode:'copy'
+    input:
+        set val(mafs_dataset), val(chrm), file(mafs_file) from mafs_annotations_data_cha
+    output:
+        set val(mafs_dataset), val(chrm), file(outTSV) into mafs_annot_dataset
+    script:
+        outVCF = ""
+        inVCF = ""
+        inTSV = mafs_file
+        outTSV = "${mafs_dataset}_chr${chrm}_mafs.tsv"
+        template "annotateVCFwithTSV.py"
+}
+
+
+'''
+Step 9.2: Annotate whole merge database with mafs from AGVP, SAHGP, TRYPANOGEN, gnomAD, ExAC
+'''
+mafs_annot_dataset.into { mafs_annot_dataset; mafs_annot_dataset_1 }
+annotate_dataset_cosmic.into { annotate_dataset_cosmic; annotate_dataset_cosmic_1}
+mafs_annot_dataset_list = mafs_annot_dataset_1.toSortedList().val
+annotate_dataset_cosmic_list = annotate_dataset_cosmic_1.toSortedList().val
+annotate_dataset_cosmic_2 = [:]
+annotate_dataset_cosmic_list.each{ dataset, chrm, vcf_file, vcf_file_tbi ->
+    annotate_dataset_cosmic_2[chrm] = [dataset, chrm, file(vcf_file)]
+    annot = []
+    datasets = []
+    mafs_annot_dataset_list.each{ mafs_dataset, chr, mafs_file ->
+        if (chrm == chr){
+            annot << file(mafs_file)
+            if( mafs_dataset.size() >= 6 ) {
+                mafs_dataset = mafs_dataset[0..5]
+            }
+            datasets << mafs_dataset
+        }
+    }
+    annotate_dataset_cosmic_2[chrm] << annot.join(';')
+    annotate_dataset_cosmic_2[chrm] << datasets.join('-')
+}
+annotate_dataset_cosmic_2_cha = Channel.from(annotate_dataset_cosmic_2.values())
+process annotate_mafs_dataset {
+    tag "mafs_${file(vcf_file.baseName).baseName}"
+    label "bigmem"
+    input:
+        set val(dataset), val(chrm), file(vcf_file), val(mafs_files), val(mafs_dataset) from annotate_dataset_cosmic_2_cha
+    output:
+        set val(dataset), val(chrm), file(outVCF) into annotate_mafs_dataset
+    script:
+        outVCF = "${file(vcf_file.baseName).baseName}_mafs-${mafs_dataset}.vcf"
+        inVCF = vcf_file
+        inTSV = mafs_files
+        outTSV = ''
+        template "annotateVCFwithTSV.py"
+}
+
+process annotate_mafs_dataset_gz {
+    tag "mafs_${file(vcf_in.baseName).baseName}"
+    label "bigmem"
+    publishDir "${params.work_dir}/data/${dataset}/ALL/ANN/CHRS", mode:'symlink'
+    input:
+        set val(dataset), val(chrm), file(vcf_in) from annotate_mafs_dataset
+    output:
+        set val(dataset), val(chrm), file("${vcf_in}.gz") into annotate_mafs_dataset_gz,annotate_mafs_dataset_gz_1
+    script:
+        println chrm
+        """
+        bgzip -f ${vcf_in}
+        """
+}
+
 //annotate_mafs_dataset.into {annotate_mafs_dataset; annotate_mafs_dataset_sub}
-//
+
 ////
 ////'''
 ////Step 9.2.1: Annotate VCF for Ancestral Allele (AA) using in-house python script
@@ -713,99 +725,98 @@ process plot_pca_group {
 ////}
 //
 //
-//'''
-//Step 9.3: Reduced VCFs to PGX variants only
-//'''
-//annotate_mafs_dataset.into {annotate_mafs_dataset; annotate_mafs_dataset_2}
-////vcf_anc_dataset.into {vcf_anc_dataset; vcf_anc_dataset_2}
-////annotate_mafs_dataset_9_3 = vcf_anc_dataset_2.combine(gene_regions_slop_cha)
-//gene_regions_slop_cha = Channel.fromPath(params.gene_regions_slop)
-//annotate_mafs_dataset_9_3 = annotate_mafs_dataset_2.combine(gene_regions_slop_cha)
-//process subset_pgx {
-//    tag "subset_pgx_${file(vcf_file.baseName).baseName}"
-//    label "small"
-//    publishDir "${params.work_dir}/data/${dataset}/PGX_ONLY/ANN/CHRS", mode:'symlink'
-//    input:
-//        set val(dataset),  val(chrm), file(vcf_file), file(vcf_file_tbi), file(gene_regions_slop) from annotate_mafs_dataset_9_3
-//    output:
-//        set val(dataset), val(chrm), file("${vcf_out}.gz"), file("${vcf_out}.gz.tbi") into subset_pgx
-//    script:
-//        vcf_out = "${file(vcf_file.baseName).baseName}_pgx.vcf"
-//        """
-//        bcftools view ${vcf_file} \
-//            --regions-file ${gene_regions_slop} | \
-//        bgzip -c > ${file(vcf_file.baseName).baseName}.tmp.vcf.gz
-//        bcftools sort ${file(vcf_file.baseName).baseName}.tmp.vcf.gz -Oz -o ${vcf_out}.gz
-//        bcftools index --tbi -f ${vcf_out}.gz
-//        rm ${file(vcf_file.baseName).baseName}.tmp.vcf.gz
-//        ## TODO remove INTRON variants
-//        """
-//}
-//
-//
-//'''
-//Step : Split sample files by population
-//'''
-//mafs_annotations_data_cha = Channel.from(mafs_annotations_data)
-//process split_POP_samples {
-//    tag "split_${pop_sample}"
-//    label "small"
-//    publishDir "${params.work_dir}/data/samples/", mode:'copy'
-//    input:
-//        set val(POP), val(dataset), file(dataset_sample) from pop_dataset_sample
-//    output:
-//        set val(POP), file(pop_sample), val(dataset) into split_POP_samples
-//    script:
-//        pop_sample = "${POP}.sample"
-//        """
-//        awk '/${POP}/ {print \$0"\t${dataset}"}' ${dataset_sample} > ${pop_sample}
-//        """
-//}
-//split_POP_samples.into {split_POP_samples; split_POP_samples_sub}
-//
-//
-//
-//'''
-//Step 4.0: Merge population sample files
-//'''
-//split_POP_samples.into { split_POP_samples; split_POP_samples_1 }
-//pop_samples_per_dataset = [:]
-//split_POP_samples_1.toSortedList().val.each { pop, pop_sample, dataset ->
-//    if(!(dataset in pop_samples_per_dataset.keySet())){
-//        pop_samples_per_dataset[dataset] = []
-//    }
-//    pop_samples_per_dataset[dataset] << file(pop_sample)
-//}
-//process merge_pop_sample{
-//    tag "merge_sample_${dataset}"
-//    label "small"
-//    publishDir "${params.work_dir}/data/samples/", mode:'symlink'
-//    input:
-//        val(dataset) from pop_samples_per_dataset.keySet()
-//    output:
-//        set val(dataset), file(dataset_sample), file("${dataset}.populations.txt"), file("${dataset}.superPopulations.txt") into merge_pop_sample
-//    script:
-//        dataset_sample = "${dataset}.sample"
-//        """
-//        cat ${pop_samples_per_dataset[dataset].join(' ')} > ${dataset_sample}
-//        # Make files with unique (super)population
-//        awk '{print \$2}' ${dataset_sample} | sort | uniq > ${dataset}.populations.txt
-//        awk '{print \$3}' ${dataset_sample} | sort | uniq > ${dataset}.superPopulations.txt
-//        """
-//}
-//merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
-//
+'''
+Step 9.3: Reduced VCFs to PGX variants only
+'''
+//annotate_mafs_dataset_9_3 = vcf_anc_dataset_2.combine(gene_regions_slop_cha)
+gene_regions_slop_cha = Channel.fromPath(params.gene_regions_slop)
+annotate_mafs_dataset_9_3 = annotate_mafs_dataset_gz.combine(gene_regions_slop_cha)
+process subset_pgx {
+    tag "subset_pgx_${file(vcf_file.baseName).baseName}"
+    label "small"
+    publishDir "${params.work_dir}/data/${dataset}/PGX_ONLY/ANN/CHRS", mode:'symlink'
+    input:
+        set val(dataset), val(chrm), file(vcf_file), file(gene_regions_slop) from annotate_mafs_dataset_9_3
+    output:
+        set val(dataset), val(chrm), file("${vcf_out}.gz") into subset_pgx
+    script:
+        vcf_out = "${file(vcf_file.baseName).baseName}_pgx.vcf"
+        """
+        tabix ${vcf_file}
+        bcftools view ${vcf_file} \
+            --regions-file ${gene_regions_slop} | \
+        bgzip -c > ${file(vcf_file.baseName).baseName}.tmp.vcf.gz
+        bcftools sort ${file(vcf_file.baseName).baseName}.tmp.vcf.gz -Oz -o ${vcf_out}.gz
+        rm ${file(vcf_file.baseName).baseName}.tmp.vcf.gz
+        ## TODO remove INTRON variants
+        """
+}
+
+
+'''
+Step : Split sample files by population
+'''
+mafs_annotations_data_cha = Channel.from(mafs_annotations_data)
+process split_POP_samples {
+    tag "split_${pop_sample}"
+    label "small"
+    publishDir "${params.work_dir}/data/samples/", mode:'copy'
+    input:
+        set val(POP), val(dataset), file(dataset_sample) from pop_dataset_sample
+    output:
+        set val(POP), file(pop_sample), val(dataset) into split_POP_samples
+    script:
+        pop_sample = "${POP}.sample"
+        """
+        awk '/${POP}/ {print \$0"\t${dataset}"}' ${dataset_sample} > ${pop_sample}
+        """
+}
+split_POP_samples.into {split_POP_samples; split_POP_samples_sub}
+
+
+
+'''
+Step 4.0: Merge population sample files
+'''
+split_POP_samples.into { split_POP_samples; split_POP_samples_1 }
+pop_samples_per_dataset = [:]
+split_POP_samples_1.toSortedList().val.each { pop, pop_sample, dataset ->
+    if(!(dataset in pop_samples_per_dataset.keySet())){
+        pop_samples_per_dataset[dataset] = []
+    }
+    pop_samples_per_dataset[dataset] << file(pop_sample)
+}
+process merge_pop_sample{
+    tag "merge_sample_${dataset}"
+    label "small"
+    publishDir "${params.work_dir}/data/samples/", mode:'symlink'
+    input:
+        val(dataset) from pop_samples_per_dataset.keySet()
+    output:
+        set val(dataset), file(dataset_sample), file("${dataset}.populations.txt"), file("${dataset}.superPopulations.txt") into merge_pop_sample
+    script:
+        dataset_sample = "${dataset}.sample"
+        """
+        cat ${pop_samples_per_dataset[dataset].join(' ')} > ${dataset_sample}
+        # Make files with unique (super)population
+        awk '{print \$2}' ${dataset_sample} | sort | uniq > ${dataset}.populations.txt
+        awk '{print \$3}' ${dataset_sample} | sort | uniq > ${dataset}.superPopulations.txt
+        """
+}
+merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
+
 //
 //"""
 //Step 10a: Combine chromosome VCFs AIBST into one
 //"""
 ////vcf_anc_dataset.into{ vcf_anc_dataset; vcf_anc_dataset_1}
-//annotate_mafs_dataset.into {annotate_mafs_dataset; annotate_mafs_dataset_3}
+////annotate_mafs_dataset.into {annotate_mafs_dataset; annotate_mafs_dataset_3}
 //vcf_anc_dataset_list = [:]
 //merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_1 }
 //merge_pop_sample_1_list = merge_pop_sample_1.toSortedList().val
+//annotate_mafs_dataset_3_list = annotate_mafs_dataset_gz_1.toSortedList().val
 ////vcf_anc_dataset_1.toSortedList().val.each { dataset, chrm, vcf_file, vcf_file_tbi ->
-//annotate_mafs_dataset_3.toSortedList().val.each { dataset, chrm, vcf_file, vcf_file_tbi ->
+//annotate_mafs_dataset_3_list.each { dataset, chrm, vcf_file ->
 //    if (!(dataset in vcf_anc_dataset_list.keySet())) {
 //        merge_pop_sample_1_list.each{ dataset1, dataset_sample, dataset_populations, dataset_superPopulations ->
 //            if (dataset1 == dataset){
@@ -838,7 +849,8 @@ process plot_pca_group {
 //        rm ${dataset}.tmp*.vcf.gz
 //        """
 //}
-//
+
+
 ////
 ////"""
 ////Step 10.3: Annotate VCF AIBST using snpEff
