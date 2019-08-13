@@ -130,7 +130,7 @@ ENV \
 RUN \
   wget --quiet -O snpEff_${SNPEFF_VERSION}_core.zip \
     http://downloads.sourceforge.net/project/snpeff/snpEff_${SNPEFF_VERSION}_core.zip && \
-    unzip snpEff_${SNPEFF_VERSION}_core.zip -d /opt/ && \
+    unzip snpEff_${SNPEFF_VERSION}_core.zip -d /usr/local/bin/ && \
     rm snpEff_${SNPEFF_VERSION}_core.zip
 
 # Tidy up
