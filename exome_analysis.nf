@@ -9,6 +9,8 @@ Latest modification:
   - TODO
 """
 
+
+
 CHRMS = params.chromosomes.split(',')
 println "Project : $workflow.projectDir"
 // println "Git info: $workflow.repository - $workflow.revision [$workflow.commitId]"
@@ -16,7 +18,8 @@ println "Cmd line: $workflow.commandLine"
 println "Chromosomes used: ${CHRMS.join(',')}"
 
 
-// All POP
+
+// All POP ..
 def POPS_ALL = []
 pop_to_dataset = [:]
 pop_dataset_sample = []
@@ -441,7 +444,6 @@ process biall_dataset {
         bcftools index --tbi -f ${vcf_out}
         """
 }
-
 
 """
 Step 3: Phase VCFs AIBST using eagle

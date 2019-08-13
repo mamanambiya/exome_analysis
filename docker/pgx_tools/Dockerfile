@@ -131,6 +131,8 @@ RUN \
   wget --quiet -O snpEff_${SNPEFF_VERSION}_core.zip \
     http://downloads.sourceforge.net/project/snpeff/snpEff_${SNPEFF_VERSION}_core.zip && \
     unzip snpEff_${SNPEFF_VERSION}_core.zip -d /usr/local/bin/ && \
+    bash -c 'echo -e "#!/bin/bash\njava -jar /usr/local/bin/snpEff/SnpSift.jar \$@" > /usr/local/bin/snpEff/scripts/snpsift' && \
+    chmod +x /usr/local/bin/snpEff/scripts/snpsift && \
     rm snpEff_${SNPEFF_VERSION}_core.zip
 
 # Tidy up
