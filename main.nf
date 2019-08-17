@@ -144,7 +144,7 @@ process split_dataset_pop {
 dataset_pop_combine = split_dataset_pop_combine.groupTuple()
 process concat_dataset_pop {
     tag "concat_dataset_${pop}_${dataset}"
-    label "medmem"
+    label "bigmem"
     input:
         set pop, chrms, vcfs, samples, datasets from dataset_pop_combine
     output:
