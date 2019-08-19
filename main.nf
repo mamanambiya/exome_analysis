@@ -159,11 +159,12 @@ process concat_dataset_pop {
             -Oz -o ${pop}.tmp1.vcf.gz
         ## Recalculate AC, AN, AF
         bcftools +fill-tags ${pop}.tmp1.vcf.gz -Oz -o ${pop}.tmp2.vcf.gz
-        bcftools sort ${pop}.tmp2.vcf.gz -Oz -o ${vcf_out}
+        bcftools sort ${pop}.tmp2.vcf.gz --temp-dir ${params.tmpdir} -Oz -o ${vcf_out}
         bcftools index --tbi -f ${vcf_out}
         rm ${pop}.tmp*.vcf.gz
         """
 }
+
 
 
 dataset_pop_groups = [:]
@@ -244,7 +245,7 @@ process merge_pop_groups_3 {
     script:
     vcf_out = "${group}.tmp3.vcf.gz"
     """
-    bcftools sort ${group_vcf} -Oz -o ${vcf_out}
+    bcftools sort ${group_vcf} --temp-dir ${params.tmpdir} -Oz -o ${vcf_out}
     """
 }
 
@@ -799,7 +800,7 @@ process subset_pgx {
         bcftools view ${vcf_file} \
             --regions-file ${gene_regions_slop} | \
         bgzip -c > ${file(vcf_file.baseName).baseName}.tmp.vcf.gz
-        bcftools sort ${file(vcf_file.baseName).baseName}.tmp.vcf.gz -Oz -o ${vcf_out}.gz
+        bcftools sort ${file(vcf_file.baseName).baseName}.tmp.vcf.gz --temp-dir ${params.tmpdir} -Oz -o ${vcf_out}.gz
         rm ${file(vcf_file.baseName).baseName}.tmp.vcf.gz
         ## TODO remove INTRON variants
         """
