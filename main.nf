@@ -162,7 +162,8 @@ process concat_dataset_pop {
         -Oz -o ${pop}.tmp1.vcf.gz
     ## Recalculate AC, AN, AF
     bcftools +fill-tags ${pop}.tmp1.vcf.gz -Oz -o ${pop}.tmp2.vcf.gz
-    bcftools sort ${pop}.tmp2.vcf.gz --temp-dir ${params.tmpdir} -Oz -o ${vcf_out}
+    bcftools sort ${pop}.tmp2.vcf.gz  -Oz -o ${vcf_out}
+    ## --temp-dir ${params.tmpdir}
     bcftools index --tbi -f ${vcf_out}
     rm ${pop}.tmp*.vcf.gz
     """
@@ -213,34 +214,15 @@ process merge_pop_groups_1 {
     """
 }
 
-"""
-Step: Merge populations into group - Recalculate AC, AF, MAF
-"""
-process merge_pop_groups_2 {
-    tag "merge_pop_groups_${group}"
-    label "extrabig"
-    input:
-    set group, file(group_vcf), file(group_sample) from merge_pop_groups_1
-
-    output:
-    set group, file(vcf_out), file(group_sample) into merge_pop_groups_2
-
-    script:
-    vcf_out = "${group}.tmp2.vcf.gz"
-    """
-    ## Recalculate AC, AN, AF
-    bcftools +fill-tags ${group_vcf} -Oz -o ${vcf_out}
-    """
-}
 
 """
-Step: Merge populations into group - Sort VCF
+Step: Merge populations into group - Recalculate AC, AF, MAF and Sort VCF
 """
 process merge_pop_groups_3 {
     tag "merge_pop_groups_${group}"
     label "extrabig"
     input:
-    set group, file(group_vcf), file(group_sample) from merge_pop_groups_2
+    set group, file(group_vcf), file(group_sample) from merge_pop_groups_1
 
     output:
     set group, file(vcf_out), file(group_sample) into merge_pop_groups_3
@@ -248,7 +230,10 @@ process merge_pop_groups_3 {
     script:
     vcf_out = "${group}.tmp3.vcf.gz"
     """
-    bcftools sort ${group_vcf} --temp-dir ${params.tmpdir} -Oz -o ${vcf_out}
+    ## Recalculate AC, AN, AF
+    bcftools +fill-tags ${group_vcf} -Oz -o ${group}.tmp.vcf.gz
+    bcftools sort ${group}.tmp.vcf.gz --temp-dir ${params.tmpdir} -Oz -o ${vcf_out}
+    rm -f ${group}.tmp.vcf.gz
     """
 }
 
@@ -275,47 +260,49 @@ process merge_pop_groups {
     """
 }
 
-//
-// """
-// Step: Convert from VCF to plink for PCA analysis
-// """
-// process group_vcf_to_plink {
-//     tag "group_vcf_to_plink_${group}"
-//     label "extrabig"
-//     input:
-//         set group, file(group_vcf), file(group_sample) from merge_pop_groups_plink
-//     output:
-//         set group, file(plink_bed), file(plink_bim), file(plink_fam), file(group_sample) into group_vcf_to_plink
-//     script:
-//         plink_bed = "${group}_pruned.bed"
-//         plink_bim = "${group}_pruned.bim"
-//         plink_fam = "${group}_pruned.fam"
-//         """
-//         nblines=\$(zcat ${group_vcf} | grep -v '^#' | wc -l)
-//         if (( \$nblines > 0 ))
-//         then
-//             plink2 \
-//                 --vcf ${group_vcf} \
-//                 --indep-pairwise 50 5 0.5 \
-//                 --allow-no-sex \
-//                 --make-bed \
-//                 --snps-only --max-alleles 2  \
-//                 --out ${group}
-//             plink2 \
-//                 --vcf ${group_vcf} \
-//                 --extract ${group}.prune.in \
-//                 --make-bed --snps-only --max-alleles 2 \
-//                 --out ${group}_pruned
-//             rm -rf ${group}.{bed,bim,fam}
-//         else
-//             touch ${plink_bed}
-//             touch ${plink_bim}
-//             touch ${plink_fam}
-//         fi
-//         """
-// }
-//
-//
+
+"""
+Step: Convert from VCF to plink for PCA analysis
+"""
+process group_vcf_to_plink {
+    tag "group_vcf_to_plink_${group}"
+    label "extrabig"
+    input:
+        set group, file(group_vcf), file(group_sample) from merge_pop_groups_plink
+    output:
+        set group, file(plink_bed), file(plink_bim), file(plink_fam), file(group_sample) into group_vcf_to_plink
+    script:
+        plink_bed = "${group}_pruned.bed"
+        plink_bim = "${group}_pruned.bim"
+        plink_fam = "${group}_pruned.fam"
+        """
+        nblines=\$(zcat ${group_vcf} | grep -v '^#' | wc -l)
+        if (( \$nblines > 0 ))
+        then
+            plink2 \
+                --vcf ${group_vcf} \
+                --indep-pairwise 50 5 0.5 \
+                --allow-no-sex \
+                --make-bed \
+                --snps-only --max-alleles 2  \
+                --out ${group}
+            # Discard records with r2 bigger than 0.6 in a window of 1000 sites
+            bcftools +prune -l 0.5 -w 50kb ${group_vcf} -Oz -o ${group}_bcftools.vcf.gz
+            plink2 \
+                --vcf ${group_vcf} \
+                --extract ${group}.prune.in \
+                --make-bed --snps-only --max-alleles 2 \
+                --out ${group}_pruned
+            rm -rf ${group}.{bed,bim,fam}
+        else
+            touch ${plink_bed}
+            touch ${plink_bim}
+            touch ${plink_fam}
+        fi
+        """
+}
+
+
 // """
 // Step: Run Smartpca PCA analysis for group
 // """
@@ -400,7 +387,7 @@ process merge_pop_groups {
 //         input_evec = group_evec
 //         template "plot_pca.R"
 // }
-//
+
 
 '''
 Step: Prepare all data to be used
@@ -510,7 +497,7 @@ Step 3: Phase VCFs AIBST using eagle
 """
 process phase_dataset {
     tag "phase_dataset_${file(vcf_file.baseName).baseName}"
-    label "bigmem"
+    label "extrabig"
     publishDir "${params.work_dir}/data/${dataset}/VCF/CHRS", mode: 'copy'
 
     input:
@@ -744,7 +731,7 @@ annotate_dataset_cosmic_list.each{ dataset, chrm, vcf_file, vcf_file_tbi ->
 annotate_dataset_cosmic_2_cha = Channel.from(annotate_dataset_cosmic_2.values())
 process annotate_mafs_dataset {
     tag "mafs_${file(vcf_file.baseName).baseName}"
-    label "bigmem"
+    label "extrabig"
 
     input:
     set val(dataset), val(chrm), file(vcf_file), val(mafs_files), val(mafs_dataset) from annotate_dataset_cosmic_2_cha
