@@ -23,7 +23,7 @@ RUN apt-get update && \
     pkg-config \
     unzip \
     wget curl \
-    python python-dev \
+    python python-dev python3 \
     libbz2-dev \
     liblzma-dev \
     zlib1g-dev \
@@ -40,6 +40,10 @@ RUN apt-get update && \
     r-base && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# r-base r-ggplot2 r-dplyr r-reshape2
+#r-cairo r-optparse r-tidyr && \
+#conda install -c conda-forge r-sm r-ggsci
 
 # Install htslib
 RUN wget https://github.com/samtools/htslib/releases/download/1.9/htslib-1.9.tar.bz2 && \
@@ -126,21 +130,8 @@ ENV \
 RUN \
   wget --quiet -O snpEff_${SNPEFF_VERSION}_core.zip \
     http://downloads.sourceforge.net/project/snpeff/snpEff_${SNPEFF_VERSION}_core.zip && \
-    unzip snpEff_${SNPEFF_VERSION}_core.zip -d /usr/local/bin/ && \
-    bash -c 'echo -e "#!/bin/bash\njava -jar /usr/local/bin/snpEff/SnpSift.jar \$@" > /usr/local/bin/snpEff/scripts/snpsift' && \
-    chmod +x /usr/local/bin/snpEff/scripts/snpsift && \
+    unzip snpEff_${SNPEFF_VERSION}_core.zip -d /opt/ && \
     rm snpEff_${SNPEFF_VERSION}_core.zip
-
-## install R packages
-RUN R --slave -e 'install.packages("dplyr", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("ggplot2", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("data.table", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("sm", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("reshape2", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("cairo", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("optparse", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("tidyr", repos="https://cloud.r-project.org/")'
-
 
 # Tidy up
 RUN rm -rf /tmp/*
