@@ -14,7 +14,6 @@ MAINTAINER Mamana Mbiyavanga "mamana.mbiyavanga@uct.ac.za"
 # Install Basic tools
 
 # Install wget
-RUN
 RUN apt-get update && \
     apt-get install -y \
     autoconf \
@@ -24,7 +23,7 @@ RUN apt-get update && \
     pkg-config \
     unzip \
     wget curl \
-    python python-dev python3.6 \
+    python python-dev \
     libbz2-dev \
     liblzma-dev \
     zlib1g-dev \
@@ -133,6 +132,17 @@ RUN \
     http://downloads.sourceforge.net/project/snpeff/snpEff_${SNPEFF_VERSION}_core.zip && \
     unzip snpEff_${SNPEFF_VERSION}_core.zip -d /opt/ && \
     rm snpEff_${SNPEFF_VERSION}_core.zip
+
+
+## Install python3.7
+RUN apt-get -y update && apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev l$
+RUN cd /tmp && \
+        wget https://www.python.org/ftp/python/3.7.2/Python-3.7.2.tar.xz && \
+        tar -xf Python-3.7.2.tar.xz && \
+        cd Python-3.7.2 && \
+        ./configure --enable-optimizations && \
+        make -j 1 && \
+        make altinstall
 
 # Tidy up
 RUN rm -rf /tmp/*
