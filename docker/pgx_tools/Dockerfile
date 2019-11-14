@@ -23,7 +23,7 @@ RUN apt-get update && \
     pkg-config \
     unzip \
     wget curl \
-    python python-dev python3 \
+    python python-dev python3.7 \
     libbz2-dev \
     liblzma-dev \
     zlib1g-dev \
