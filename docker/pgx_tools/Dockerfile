@@ -14,6 +14,7 @@ MAINTAINER Mamana Mbiyavanga "mamana.mbiyavanga@uct.ac.za"
 # Install Basic tools
 
 # Install wget
+RUN
 RUN apt-get update && \
     apt-get install -y \
     autoconf \
@@ -23,7 +24,7 @@ RUN apt-get update && \
     pkg-config \
     unzip \
     wget curl \
-    python python-dev python3.7 \
+    python python-dev python3.6 \
     libbz2-dev \
     liblzma-dev \
     zlib1g-dev \
