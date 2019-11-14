@@ -141,7 +141,7 @@ RUN cd /tmp && \
         tar -xf Python-3.7.2.tar.xz && \
         cd Python-3.7.2 && \
         ./configure --enable-optimizations && \
-        make -j 1 && \
+        make -j 4 && \
         make altinstall
 
 # Tidy up
