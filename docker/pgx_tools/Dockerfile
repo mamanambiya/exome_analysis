@@ -7,7 +7,7 @@
 FROM ubuntu:16.04
 
 # File Author / Maintainer
-MAINTAINER Mamana Mbiyavanga "mamana.mbiyavanga@uct.ac.za"
+# MAINTAINER Mamana Mbiyavanga "mamana.mbiyavanga@uct.ac.za"
 
 
 ################## BEGIN INSTALLATION ######################
