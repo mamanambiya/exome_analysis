@@ -125,12 +125,14 @@ RUN wget https://data.broadinstitute.org/alkesgroup/Eagle/downloads/Eagle_v2.4.1
 # Install snpEff
 # Setup ENV variables
 ENV \
-  SNPEFF_VERSION=latest\
-  SNPEFF_HOME=/usr/local/bin/snpEff
+    SNPEFF_VERSION=latest\
+    SNPEFF_HOME=/usr/local/bin/snpEff
 RUN \
-  wget --quiet -O snpEff_${SNPEFF_VERSION}_core.zip \
+    wget --quiet -O snpEff_${SNPEFF_VERSION}_core.zip \
     http://downloads.sourceforge.net/project/snpeff/snpEff_${SNPEFF_VERSION}_core.zip && \
-    unzip snpEff_${SNPEFF_VERSION}_core.zip -d /opt/ && \
+    unzip snpEff_${SNPEFF_VERSION}_core.zip -d /usr/local/bin/ && \
+    bash -c 'echo -e "#!/bin/bash\njava -jar /usr/local/bin/snpEff/SnpSift.jar \$@" > /usr/local/bin/snpEff/scripts/snpsift' && \
+    chmod +x /usr/local/bin/snpEff/scripts/snpsift && \
     rm snpEff_${SNPEFF_VERSION}_core.zip
 
 
@@ -143,6 +145,17 @@ RUN cd /tmp && \
         ./configure --enable-optimizations && \
         make -j 4 && \
         make altinstall
+
+## install R packages
+RUN R --slave -e 'install.packages("dplyr", repos="https://cloud.r-project.org/")'
+RUN R --slave -e 'install.packages("ggplot2", repos="https://cloud.r-project.org/")'
+RUN R --slave -e 'install.packages("data.table", repos="https://cloud.r-project.org/")'
+RUN R --slave -e 'install.packages("sm", repos="https://cloud.r-project.org/")'
+RUN R --slave -e 'install.packages("reshape2", repos="https://cloud.r-project.org/")'
+RUN R --slave -e 'install.packages("cairo", repos="https://cloud.r-project.org/")'
+RUN R --slave -e 'install.packages("optparse", repos="https://cloud.r-project.org/")'
+RUN R --slave -e 'install.packages("tidyr", repos="https://cloud.r-project.org/")'
+
 
 # Tidy up
 RUN rm -rf /tmp/*
