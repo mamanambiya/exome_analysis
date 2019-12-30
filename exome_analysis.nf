@@ -9,8 +9,6 @@ Latest modification:
   - TODO
 """
 
-
-
 CHRMS = params.chromosomes.split(',')
 println "Project : $workflow.projectDir"
 // println "Git info: $workflow.repository - $workflow.revision [$workflow.commitId]"
@@ -18,8 +16,7 @@ println "Cmd line: $workflow.commandLine"
 println "Chromosomes used: ${CHRMS.join(',')}"
 
 
-
-// All POP ..
+// All POP
 def POPS_ALL = []
 pop_to_dataset = [:]
 pop_dataset_sample = []
@@ -62,6 +59,7 @@ dataset_files_ = [:]
 dataset_files_only = [] // Full dataset, AIBSST only for now
 dataset_files_chr = []
 dataset_files_pop = []
+// params.dataset_full_files.each { dataset, dataset_vcf, dataset_sample, dataset_pops ->
 params.dataset_full_files.each { dataset ->
     dataset_files_only << [dataset.key, file(params.dataset_full_files[dataset.key])]
 }
@@ -191,211 +189,149 @@ params.dataset_groups.each{ dataset_group ->
 """
 Step: Merge populations into group
 """
-process merge_pop_groups_1 {
+process merge_pop_groups {
     tag "merge_pop_groups_${group}"
     label "extrabig"
     input:
         set group, pop_vcfs, pop_samples from dataset_pop_groups.values()
     output:
-        set group, file(vcf_out), file(sample_out) into merge_pop_groups_1
+        set group, file(vcf_out), file(sample_out) into merge_pop_groups
+        set group, file(vcf_out_plink), file(sample_out) into merge_pop_groups_plink
     script:
-        vcf_out = "${group}.tmp2.vcf.gz"
+        vcf_out = "${group}.vcf.gz"
+        vcf_out_plink = "${group}_plink.vcf.gz"
         sample_out = "${group}.sample"
         """
         bcftools merge \
             ${pop_vcfs} \
-            -Oz -o ${vcf_out}
+            -Oz -o ${group}.tmp1.vcf.gz
+        ## Recalculate AC, AN, AF
+        bcftools +fill-tags ${group}.tmp1.vcf.gz -Oz -o ${group}.tmp2.vcf.gz
+        bcftools sort ${group}.tmp2.vcf.gz -Oz -o ${vcf_out}
+        bcftools annotate \
+            -x INFO,^FORMAT \
+            --set-id '%CHROM\\_%POS\\_%REF\\_%ALT' ${vcf_out} -Oz -o ${vcf_out_plink}
         cat ${pop_samples} > ${sample_out}
+        rm ${group}.tmp*.vcf.gz
         """
 }
 
+
+
 """
-Step: Merge populations into group - Recalculate AC, AF, MAF
+Step: Convert from VCF to plink for PCA analysis
 """
-process merge_pop_groups_2 {
-    tag "merge_pop_groups_${group}"
+process group_vcf_to_plink {
+    tag "group_vcf_to_plink_${group}"
     label "extrabig"
     input:
-    set group, file(group_vcf), file(group_sample) from merge_pop_groups_1
-
+        set group, file(group_vcf), file(group_sample) from merge_pop_groups_plink
     output:
-    set group, file(vcf_out), file(group_sample) into merge_pop_groups_2
-
+        set group, file("${base}_pruned.ped"), file("${base}_pruned.map"), file(group_sample) into group_vcf_to_plink
     script:
-    vcf_out = "${group}.tmp2.vcf.gz"
-    """
-    ## Recalculate AC, AN, AF
-    bcftools +fill-tags ${group_vcf} -Oz -o ${vcf_out}
-    """
+        base = file(group_vcf.baseName).baseName
+        """
+        nblines=\$(zcat ${group_vcf} | grep -v '^#' | wc -l)
+        if (( \$nblines > 0 ))
+        then
+            # Discard records with r2 bigger than 0.5 in a window of 50kb sites
+            bcftools +prune \
+                -l 0.5 -w 50kb \
+                ${group_vcf} \
+                -Oz -o ${base}_pruned.vcf.gz
+            vcftools \
+                --gzvcf ${base}_pruned.vcf.gz \
+                --plink \
+                --out ${base}_pruned
+        else
+            touch ${base}_pruned.ped
+            touch ${base}_pruned.map
+        fi
+        """
 }
 
+
+
 """
-Step: Merge populations into group - Sort VCF
+Step: Run Smartpca PCA analysis for group
 """
-process merge_pop_groups_3 {
-    tag "merge_pop_groups_${group}"
+process smartpca_group {
+    tag "smartpca_group_${group}"
     label "extrabig"
+//    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
     input:
-    set group, file(group_vcf), file(group_sample) from merge_pop_groups_2
-
+        set group, file(group_ped), file(group_map), file(group_sample) from group_vcf_to_plink
     output:
-    set group, file(vcf_out), file(group_sample) into merge_pop_groups_3
-
+        set group, file(group_evec), file(group_eval), file(group_grmjunk), file(group_sample) into smartpca_group
     script:
-    vcf_out = "${group}.tmp3.vcf.gz"
-    """
-    bcftools sort ${group_vcf} -Oz -o ${vcf_out}
-    """
+        group_evec = "${group}.evec"
+        group_eval = "${group}.eval"
+        group_grmjunk = "${group}.evec_grmjunk"
+        """
+        nblines=\$(cat ${group_map} | grep -v '^#' | wc -l)
+        if (( \$nblines > 0 ))
+        then
+            ## Create parameter file for smartpca
+            echo -e \
+            "genotypename:   ${group_ped}
+            snpname:         ${group_map}
+            indivname:       ${group_ped}
+            evecoutname:     ${group_evec}
+            evaloutname:     ${group_eval}
+            altnormstyle:    NO
+            numoutevec:      5
+            numoutlieriter:  5
+            familynames:     NO
+            grmoutname:      ${group_grmjunk}" > ${group}.EIGENSTRAT.par
+            ## Run smartpca
+            smartpca \
+                    -p ${group}.EIGENSTRAT.par \
+                    > ${group}.EIGENSTRAT.log
+            rm -rf ${group}.{ped,map}
+        else
+            touch ${group_eval}
+        fi
+        """
 }
 
+
 """
-Step: Merge populations into group - Set IDs to POS_REF_ALT
+Step: Add group to evec file from smartpca
 """
-process merge_pop_groups {
-    tag "merge_pop_groups_${group}"
-    label "extrabig"
+process update_evec {
+    tag "update_evec_${group}"
+    label "medmem"
+//    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
     input:
-    set group, file(group_vcf), file(group_sample) from merge_pop_groups_3
-
+        set group, file(group_evec), file(group_eval), file(group_grmjunk), file(group_sample) from smartpca_group
     output:
-    set group, file(group_vcf), file(group_sample) into merge_pop_groups
-    set group, file(vcf_out_plink), file(group_sample) into merge_pop_groups_plink
-
+        set group, file(group_evec_update), file(group_eval), file(group_grmjunk), file(group_sample) into update_evec
     script:
-    vcf_out_plink = "${group}_plink.vcf.gz"
-    """
-    bcftools annotate \
-        -x INFO,^FORMAT \
-        --set-id '%CHROM\\_%POS\\_%REF\\_%ALT' ${group_vcf} -Oz -o ${vcf_out_plink}
-    """
+        group_evec_update = "${file(group_evec).baseName}_update.evec"
+        evec_file = group_evec
+        evec_out = group_evec_update
+        annot_file = group_sample
+        template "update_evec.py"
 }
 
-//
-// """
-// Step: Convert from VCF to plink for PCA analysis
-// """
-// process group_vcf_to_plink {
-//     tag "group_vcf_to_plink_${group}"
-//     label "extrabig"
-//     input:
-//         set group, file(group_vcf), file(group_sample) from merge_pop_groups_plink
-//     output:
-//         set group, file(plink_bed), file(plink_bim), file(plink_fam), file(group_sample) into group_vcf_to_plink
-//     script:
-//         plink_bed = "${group}_pruned.bed"
-//         plink_bim = "${group}_pruned.bim"
-//         plink_fam = "${group}_pruned.fam"
-//         """
-//         nblines=\$(zcat ${group_vcf} | grep -v '^#' | wc -l)
-//         if (( \$nblines > 0 ))
-//         then
-//             plink2 \
-//                 --vcf ${group_vcf} \
-//                 --indep-pairwise 50 5 0.5 \
-//                 --allow-no-sex \
-//                 --make-bed \
-//                 --snps-only --max-alleles 2  \
-//                 --out ${group}
-//             plink2 \
-//                 --vcf ${group_vcf} \
-//                 --extract ${group}.prune.in \
-//                 --make-bed --snps-only --max-alleles 2 \
-//                 --out ${group}_pruned
-//             rm -rf ${group}.{bed,bim,fam}
-//         else
-//             touch ${plink_bed}
-//             touch ${plink_bim}
-//             touch ${plink_fam}
-//         fi
-//         """
-// }
-//
-//
-// """
-// Step: Run Smartpca PCA analysis for group
-// """
-// process smartpca_group {
-//     tag "smartpca_group_${group}"
-//     label "extrabig"
-// //    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
-//     input:
-//         set group, file(group_bed), file(group_bim), file(group_fam), file(group_sample) from group_vcf_to_plink
-//     output:
-//         set group, file(group_evec), file(group_eval), file(group_grmjunk), file(group_sample) into smartpca_group
-//     script:
-//         group_evec = "${group}.evec"
-//         group_eval = "${group}.eval"
-//         group_grmjunk = "${group}.evec_grmjunk"
-//         """
-//         nblines=\$(cat ${group_bim} | grep -v '^#' | wc -l)
-//         if (( \$nblines > 0 ))
-//         then
-//             plink2 \
-//                 --bfile ${group_bed.baseName} \
-//                 --allow-no-sex \
-//                 --recode \
-//                 --out ${group}
-//             ## Create parameter file for smartpca
-//             echo -e \
-//             "genotypename:    ${group}.ped
-//             snpname:         ${group}.map
-//             indivname:       ${group_fam}
-//             evecoutname:     ${group_evec}
-//             evaloutname:     ${group_eval}
-//             altnormstyle:    NO
-//             numoutevec:      5
-//             numoutlieriter:  2
-//             familynames:     NO
-//             grmoutname:      ${group_grmjunk}" > ${group}.EIGENSTRAT.par
-//             ## Run smartpca
-//             smartpca \
-//                     -p ${group}.EIGENSTRAT.par \
-//                     > ${group}.EIGENSTRAT.log
-//             rm -rf ${group}.{ped,map}
-//         else
-//             touch ${group_eval}
-//         fi
-//         """
-// }
-//
-//
-// """
-// Step: Add group to evec file from smartpca
-// """
-// process update_evec {
-//     tag "update_evec_${group}"
-//     label "medmem"
-// //    publishDir "${params.work_dir}/data/${dataset}/ALL/VCF", mode: 'symlink'
-//     input:
-//         set group, file(group_evec), file(group_eval), file(group_grmjunk), file(group_sample) from smartpca_group
-//     output:
-//         set group, file(group_evec_update), file(group_eval), file(group_grmjunk), file(group_sample) into update_evec
-//     script:
-//         group_evec_update = "${file(group_evec).baseName}_update.evec"
-//         evec_file = group_evec
-//         evec_out = group_evec_update
-//         annot_file = group_sample
-//         template "update_evec.py"
-// }
-//
-//
-// """
-// Step: Plot PCA analysis for group
-// """
-// process plot_pca_group {
-//     tag "plot_pca_group_${group}"
-//     label "medmem"
-//     publishDir "${params.work_dir}/REPORTS/PCA", mode:'copy', pattern: "*tiff"
-//     input:
-//         set group, file(group_evec), file(group_eval), file(group_grmjunk), file(group_sample) from update_evec
-//     output:
-//         set group, file(group_evec), file(group_sample), file("${output_pdf}*tiff") into plot_pca_group
-//     script:
-//         output_pdf = "${group}"
-//         input_evec = group_evec
-//         template "plot_pca.R"
-// }
-//
+
+"""
+Step: Plot PCA analysis for group
+"""
+process plot_pca_group {
+    tag "plot_pca_group_${group}"
+    label "medmem"
+    publishDir "${params.work_dir}/REPORTS/PCA", mode:'copy', pattern: "*tiff"
+    input:
+        set group, file(group_evec), file(group_eval), file(group_grmjunk), file(group_sample) from update_evec
+    output:
+        set group, file(group_evec), file(group_sample), file("${output_pdf}*tiff") into plot_pca_group
+    script:
+        output_pdf = "${group}"
+        input_evec = group_evec
+        template "plot_pca.R"
+}
+
 
 '''
 Step: Prepare all data to be used
@@ -496,6 +432,7 @@ process biall_dataset {
         """
 }
 
+
 """
 Step 3: Phase VCFs AIBST using eagle
 """
@@ -526,7 +463,7 @@ Step 4: Annotate VCFs AIBST using snpEff
 """
 process annotate_dataset_snpeff{
     tag "snpeff_${file(vcf_file.baseName).baseName}"
-    label "extrabig"
+    label "bigmem"
     publishDir "${params.work_dir}/data/${dataset}/ANN/CHRS", mode:'symlink'
     input:
         set val(dataset), val(chrm), file(vcf_file) from dataset_files
@@ -548,12 +485,12 @@ process annotate_dataset_snpeff{
 annotate_dataset_snpeff.into{ annotate_dataset_snpeff; annotate_dataset_snpeff_sub}
 
 """
-Step 5: Annotate dbSNP IDs using snpsift
+Step 5: Annotate dbSNP IDs using snpSift
 """
 annotate_dataset_snpeff.into { annotate_dataset_snpeff; annotate_dataset_snpeff_1 }
 process annotate_dataset_dbsnp{
     tag "dbSNP_${file(vcf_file.baseName).baseName}"
-    label "extrabig"
+    label "small"
     publishDir "${params.work_dir}/data/${dataset}/ANN/CHRS", mode:'symlink'
     input:
         set val(dataset), val(chrm), file(vcf_file), file(vcf_file_tbi) from annotate_dataset_snpeff_1
@@ -562,7 +499,7 @@ process annotate_dataset_dbsnp{
     script:
         vcf_out = "${file(vcf_file.baseName).baseName}_dbsnp.vcf"
         """
-        snpsift \
+        java -Xmx${task.memory.toGiga()}g -jar ${params.snpsift} \
             annotate \
             ${params.snpEff_dbsnp_vcf} \
             -dataDir ${params.snpEff_database} \
@@ -571,16 +508,16 @@ process annotate_dataset_dbsnp{
         bcftools index --tbi -f ${vcf_out}.gz
         """
 }
-annotate_dataset_dbsnp.into{ annotate_dataset_dbsnp; annotate_dataset_dbsnp_sub}
+annotate_dataset_dbsnp.into{ annotate_dataset_dbsnp; annotate_dataset_dbsnp_sub }
 
 
 """
-Step 6: Annotate GWAS Catalogue using snpsift
+Step 6: Annotate GWAS Catalogue using snpSift
 """
 annotate_dataset_dbsnp.into {annotate_dataset_dbsnp; annotate_dataset_dbsnp_1}
 process annotate_dataset_gwascat{
     tag "gwascat_${file(vcf_file.baseName).baseName}"
-    label "extrabig"
+    label "small"
     publishDir "${params.work_dir}/data/${dataset}/ANN", mode:'symlink'
 
     input:
@@ -590,7 +527,7 @@ process annotate_dataset_gwascat{
     script:
         vcf_out = "${file(vcf_file.baseName).baseName}_gwascat.vcf"
         """
-        snpsift \
+        java -Xmx${task.memory.toGiga()}g -jar ${params.snpsift} \
             gwasCat \
             -db ${params.gwascat_b37} \
             ${vcf_file} \
@@ -610,7 +547,7 @@ Step 7: Annotate with snpEff using clinvar
 annotate_dataset_gwascat.into { annotate_dataset_gwascat; annotate_dataset_gwascat_1}
 process annotate_dataset_clinvar {
     tag "clinvar_${file(vcf_file.baseName).baseName}"
-    label "extrabig"
+    label "small"
     time = { 6.hour * task.attempt }
     publishDir "${params.work_dir}/data/${dataset}/ANN/CHRS", mode:'symlink'
     input:
@@ -620,7 +557,7 @@ process annotate_dataset_clinvar {
     script:
         vcf_out = "${file(vcf_file.baseName).baseName}_clinvar.vcf"
         """
-        snpsift \
+        java -Xmx${task.memory.toGiga()}g -jar ${params.snpsift} \
             annotate \
             ${params.clinvar} \
             ${vcf_file} \
@@ -639,7 +576,7 @@ Step 8: Annotate with snpEff using cosmic
 annotate_dataset_clinvar.into { annotate_dataset_clinvar; annotate_dataset_clinvar_2}
 process annotate_cosmic_baylor {
     tag "cosmic_${file(vcf_file.baseName).baseName}"
-    label "extrabig"
+    label "small"
     time { 6.hour * task.attempt }
     publishDir "${params.work_dir}/data/${dataset}/ANN/CHRS", mode:'symlink'
     input:
@@ -649,7 +586,7 @@ process annotate_cosmic_baylor {
     script:
         vcf_out = "${file(vcf_file.baseName).baseName}_cosmic.vcf"
         """
-        snpsift \
+        java -Xmx${task.memory.toGiga()}g -jar ${params.snpsift} \
             annotate \
             ${params.cosmic} \
             ${vcf_file} \
@@ -677,7 +614,7 @@ mafs_annotations_data_cha = Channel.from(mafs_annotations_data)
 
 process mafs_annot_chrs {
     tag "mafs_annot_${mafs_dataset}_${chrm}"
-    label "bigmem"
+    label "small"
     publishDir "${params.reference_dir}/pop_mafs/${mafs_dataset}", mode:'copy'
     input:
         set val(mafs_dataset), val(chrm), file(mafs_file) from mafs_annotations_data_cha
@@ -693,7 +630,7 @@ process mafs_annot_chrs {
 
 
 '''
-Step 9.2: Annotate whole merge database with mafs from AGVP, SAHGP, TRYPANOGEN, gnomAD, ExAC
+Step 9.2: Annotate whole merge database with mafs from AGVP, SAHGP, TRYPANOGEN, gnomAD, ExAC 
 '''
 mafs_annot_dataset.into { mafs_annot_dataset; mafs_annot_dataset_1 }
 annotate_dataset_cosmic.into { annotate_dataset_cosmic; annotate_dataset_cosmic_1}
@@ -732,6 +669,8 @@ process annotate_mafs_dataset {
         template "annotateVCFwithTSV.py"
 }
 
+
+//* #region */
 process annotate_mafs_dataset_gz {
     tag "mafs_${file(vcf_in.baseName).baseName}"
     label "bigmem"
@@ -746,6 +685,7 @@ process annotate_mafs_dataset_gz {
         bgzip -f ${vcf_in}
         """
 }
+//#endregion
 
 //annotate_mafs_dataset.into {annotate_mafs_dataset; annotate_mafs_dataset_sub}
 
@@ -786,7 +726,7 @@ gene_regions_slop_cha = Channel.fromPath(params.gene_regions_slop)
 annotate_mafs_dataset_9_3 = annotate_mafs_dataset_gz.combine(gene_regions_slop_cha)
 process subset_pgx {
     tag "subset_pgx_${file(vcf_file.baseName).baseName}"
-    label "bigmem"
+    label "small"
     publishDir "${params.work_dir}/data/${dataset}/PGX_ONLY/ANN/CHRS", mode:'symlink'
     input:
         set val(dataset), val(chrm), file(vcf_file), file(gene_regions_slop) from annotate_mafs_dataset_9_3
