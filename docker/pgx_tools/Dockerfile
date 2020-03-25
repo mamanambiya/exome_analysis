@@ -158,9 +158,9 @@ RUN R --slave -e 'install.packages("tidyr", repos="https://cloud.r-project.org/"
 
 ## Install pandas for python3.7 
 RUN apt-get -y update && apt-get install -y python3-pip
-RUN pip3 install --upgrade pip
-RUN pip3 install numpy 
-RUN pip3 install pandas 
+RUN pip3.7 install --upgrade pip
+RUN pip3.7 install numpy 
+RUN pip3.7 install pandas 
 
 # Tidy up
 RUN rm -rf /tmp/*
