@@ -157,7 +157,7 @@ RUN R --slave -e 'install.packages("optparse", repos="https://cloud.r-project.or
 RUN R --slave -e 'install.packages("tidyr", repos="https://cloud.r-project.org/")'
 
 ## Install pandas for python3.7 
-RUN apt-get -y update && apt-get install python3-pandas
+RUN apt-get -y update && apt-get install python3-pandas python3-numpy
 
 # Tidy up
 RUN rm -rf /tmp/*
