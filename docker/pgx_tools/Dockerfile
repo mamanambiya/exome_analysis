@@ -156,6 +156,8 @@ RUN R --slave -e 'install.packages("cairo", repos="https://cloud.r-project.org/"
 RUN R --slave -e 'install.packages("optparse", repos="https://cloud.r-project.org/")'
 RUN R --slave -e 'install.packages("tidyr", repos="https://cloud.r-project.org/")'
 
+## Install pandas for python3.7 
+RUN apt-get -y update && apt-get install python3-pandas
 
 # Tidy up
 RUN rm -rf /tmp/*
