@@ -155,6 +155,11 @@ RUN R --slave -e 'install.packages("reshape2", repos="https://cloud.r-project.or
 RUN R --slave -e 'install.packages("cairo", repos="https://cloud.r-project.org/")'
 RUN R --slave -e 'install.packages("optparse", repos="https://cloud.r-project.org/")'
 RUN R --slave -e 'install.packages("tidyr", repos="https://cloud.r-project.org/")'
+RUN R --slave -e 'install.packages("rJava", repos="https://cloud.r-project.org/")'
+RUN R --slave -e 'install.packages("UpSetR", repos="https://cloud.r-project.org/")'
+RUN R --slave -e 'install.packages("tidyverse", repos="https://cloud.r-project.org/")'
+RUN R --slave -e 'install.packages("venneuler", repos="https://cloud.r-project.org/")'
+RUN R --slave -e 'install.packages("grid", repos="https://cloud.r-project.org/")'
 
 ## Install pandas for python3.7 
 RUN apt-get -y update && apt-get install -y python3-pip
