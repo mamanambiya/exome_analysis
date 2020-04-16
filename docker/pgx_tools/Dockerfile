@@ -36,6 +36,10 @@ RUN apt-get update && \
     libxi6 \
     libxrender1 \
     libxext6 \
+    libcurl4-gnutls-dev \
+    libxml2-dev \
+    libssl-dev \
+    texlive-full \
     openjdk-8-jdk && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
