@@ -36,7 +36,7 @@ RUN apt-get update && \
     libxi6 \
     libxrender1 \
     libxext6 \
-    openjdk-8-jdk \
+    openjdk-8-jdk && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
