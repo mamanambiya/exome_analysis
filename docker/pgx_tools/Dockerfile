@@ -36,17 +36,9 @@ RUN apt-get update && \
     libxi6 \
     libxrender1 \
     libxext6 \
-    libcurl4-gnutls-dev \
-    libxml2-dev \
-    libssl-dev \
-    texlive-full \
-    openjdk-8-jdk && \
+    openjdk-8-jdk \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# r-base r-ggplot2 r-dplyr r-reshape2
-#r-cairo r-optparse r-tidyr && \
-#conda install -c conda-forge r-sm r-ggsci
 
 # Install htslib
 RUN wget https://github.com/samtools/htslib/releases/download/1.9/htslib-1.9.tar.bz2 && \
@@ -140,50 +132,40 @@ RUN \
 
 
 ## Install python3.7
-RUN apt-get -y update && apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev
-RUN cd /tmp && \
+RUN apt-get -y update && \
+    apt-get install -y libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev && \
+    cd /tmp && \
     wget https://www.python.org/ftp/python/3.7.2/Python-3.7.2.tar.xz && \
     tar -xf Python-3.7.2.tar.xz && \
     cd Python-3.7.2 && \
     ./configure --enable-optimizations && \
-    make -j 4 && \
-    make altinstall
+        make -j 4 && \
+        make altinstall
 
-## Install R from source
-ENV R_VERSION=3.6.3
-RUN curl -O https://cran.rstudio.com/src/base/R-3/R-${R_VERSION}.tar.gz && \
-    tar -xzvf R-${R_VERSION}.tar.gz && \
-    cd R-${R_VERSION} && \
-    ./configure \
-        --prefix=/opt/R/${R_VERSION} \
-        --enable-memory-profiling \
-        --enable-R-shlib \
-        --with-blas \
-        --with-lapack && \
-    make && \
-    sudo make install
-
-## install R packages
-RUN R --slave -e 'install.packages("dplyr", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("ggplot2", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("data.table", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("sm", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("reshape2", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("cairo", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("optparse", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("tidyr", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("rJava", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("UpSetR", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("tidyverse", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("venneuler", repos="https://cloud.r-project.org/")'
-RUN R --slave -e 'install.packages("grid", repos="https://cloud.r-project.org/")'
+## Install R and R packages
+RUN apt-get -y update && \
+    apt-get install -y r-base && \
+    R --slave -e 'install.packages("dplyr", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("ggplot2", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("data.table", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("sm", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("reshape2", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("cairo", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("optparse", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("tidyr", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("rJava", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("UpSetR", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("tidyverse", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("venneuler", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("grid", repos="https://cloud.r-project.org/")' && \
 
 ## Install pandas for python3.7 
-RUN apt-get -y update && apt-get install -y python3-pip
-RUN pip3.7 install --upgrade pip
-RUN pip3.7 install numpy 
-RUN pip3.7 install pandas
-RUN pip3.7 install upsetplot
+RUN apt-get -y update && \
+    apt-get install -y python3-pip && \
+    pip3.7 install --upgrade pip && \
+    pip3.7 install numpy && \ 
+    pip3.7 install pandas && \
+    pip3.7 install upsetplot && \
 
 
 # Tidy up
