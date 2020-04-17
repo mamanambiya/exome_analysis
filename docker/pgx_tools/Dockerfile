@@ -18,7 +18,7 @@ RUN apt-get update && \
     apt-get install -y \
     autoconf \
     build-essential \
-    Software-properties-common \
+    software-properties-common \
     git \
     libncurses5-dev \
     pkg-config \
