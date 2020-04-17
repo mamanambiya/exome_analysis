@@ -18,6 +18,7 @@ RUN apt-get update && \
     apt-get install -y \
     autoconf \
     build-essential \
+    Software-properties-common \
     git \
     libncurses5-dev \
     pkg-config \
@@ -36,7 +37,7 @@ RUN apt-get update && \
     libxi6 \
     libxrender1 \
     libxext6 \
-    openjdk-8-jdk \
+    openjdk-8-jdk && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -64,16 +65,17 @@ RUN wget https://github.com/vcftools/vcftools/releases/download/v0.1.16/vcftools
     cd vcftools-0.1.16 && \
     ./configure && \
     make && \
-    make install
+    make install && \
+    cd .. && rm -rf vcftools-0.1.16*
 
 # Install bcftools
 RUN wget https://github.com/samtools/bcftools/releases/download/1.9/bcftools-1.9.tar.bz2 && \
-  tar -xvf bcftools-1.9.tar.bz2 && \
-  cd bcftools-1.9 && \
-  ./configure --prefix=/usr/local && \
-  make && \
-  make install && \
-  cd .. && rm -rf bcftools-1.9*
+    tar -xvf bcftools-1.9.tar.bz2 && \
+    cd bcftools-1.9 && \
+    ./configure --prefix=/usr/local && \
+    make && \
+    make install && \
+    cd .. && rm -rf bcftools-1.9*
 
 # Install bedtools
 RUN wget https://github.com/arq5x/bedtools2/releases/download/v2.28.0/bedtools-2.28.0.tar.gz && \
@@ -86,9 +88,8 @@ RUN wget https://github.com/arq5x/bedtools2/releases/download/v2.28.0/bedtools-2
 # Install PLINK2
 # there is an undocumented stable url (without the date)
 RUN wget http://s3.amazonaws.com/plink2-assets/plink2_linux_x86_64_latest.zip -O plink.zip && \
-  unzip plink.zip -d /usr/local/bin/ && \
-  rm -f plink.zip
-
+    unzip plink.zip -d /usr/local/bin/ && \
+    rm -f plink.zip
 
 # Compile EIG
 RUN git clone --depth 1 --branch master https://github.com/DReichLab/EIG /tmp/EIG && \
@@ -130,7 +131,6 @@ RUN \
     chmod +x /usr/local/bin/snpEff/scripts/snpsift && \
     rm snpEff_${SNPEFF_VERSION}_core.zip
 
-
 ## Install python3.7
 RUN apt-get -y update && \
     apt-get install -y libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev && \
@@ -139,8 +139,8 @@ RUN apt-get -y update && \
     tar -xf Python-3.7.2.tar.xz && \
     cd Python-3.7.2 && \
     ./configure --enable-optimizations && \
-        make -j 4 && \
-        make altinstall
+    make -j 4 && \
+    make altinstall
 
 ## Install R and R packages
 RUN apt-get -y update && \
@@ -155,9 +155,7 @@ RUN apt-get -y update && \
     R --slave -e 'install.packages("tidyr", repos="https://cloud.r-project.org/")' && \
     R --slave -e 'install.packages("rJava", repos="https://cloud.r-project.org/")' && \
     R --slave -e 'install.packages("UpSetR", repos="https://cloud.r-project.org/")' && \
-    R --slave -e 'install.packages("tidyverse", repos="https://cloud.r-project.org/")' && \
-    R --slave -e 'install.packages("venneuler", repos="https://cloud.r-project.org/")' && \
-    R --slave -e 'install.packages("grid", repos="https://cloud.r-project.org/")' && \
+    R --slave -e 'install.packages("tidyverse", repos="https://cloud.r-project.org/")'
 
 ## Install pandas for python3.7 
 RUN apt-get -y update && \
@@ -165,7 +163,7 @@ RUN apt-get -y update && \
     pip3.7 install --upgrade pip && \
     pip3.7 install numpy && \ 
     pip3.7 install pandas && \
-    pip3.7 install upsetplot && \
+    pip3.7 install upsetplot
 
 
 # Tidy up
@@ -178,4 +176,4 @@ USER ubuntu
 
 ENV PATH=/usr/local/bin/snpEff/scripts:$PATH
 
-CMD ["/bin/bash","-i"]
+CMD ["/bin/bash", "-i"]
