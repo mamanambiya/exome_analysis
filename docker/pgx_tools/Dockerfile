@@ -51,6 +51,7 @@ RUN wget https://github.com/samtools/htslib/releases/download/${VERSION}/htslib-
     make install && \
     cd .. && rm -rf htslib-${VERSION}*
 
+
 # Install samtools
 RUN wget https://github.com/samtools/samtools/releases/download/1.9/samtools-1.9.tar.bz2 && \
     tar -xvf samtools-1.9.tar.bz2 && \
