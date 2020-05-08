@@ -42,13 +42,14 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install htslib
-RUN wget https://github.com/samtools/htslib/releases/download/1.10.2/htslib-1.10.2.tar.bz2 && \
-    tar -xvf htslib-1.9.tar.bz2 && \
-    cd htslib-1.9 && \
+VERSION=1.10.2
+RUN wget https://github.com/samtools/htslib/releases/download/${VERSION}/htslib-${VERSION}.tar.bz2 && \
+    tar -xvf htslib-${VERSION}.tar.bz2 && \
+    cd htslib-${VERSION} && \
     ./configure --prefix=/usr/local && \
     make && \
     make install && \
-    cd .. && rm -rf htslib-1.9*
+    cd .. && rm -rf htslib-${VERSION}*
 
 # Install samtools
 RUN wget https://github.com/samtools/samtools/releases/download/1.9/samtools-1.9.tar.bz2 && \
@@ -69,13 +70,14 @@ RUN wget https://github.com/vcftools/vcftools/releases/download/v0.1.16/vcftools
     cd .. && rm -rf vcftools-0.1.16*
 
 # Install bcftools
-RUN wget https://github.com/samtools/bcftools/releases/download/1.9/bcftools-1.9.tar.bz2 && \
-    tar -xvf bcftools-1.9.tar.bz2 && \
-    cd bcftools-1.9 && \
+VERSION=1.10.2
+RUN wget https://github.com/samtools/bcftools/releases/download/${VERSION}/bcftools-${VERSION}.tar.bz2 && \
+    tar -xvf bcftools-${VERSION}.tar.bz2 && \
+    cd bcftools-${VERSION} && \
     ./configure --prefix=/usr/local && \
     make && \
     make install && \
-    cd .. && rm -rf bcftools-1.9*
+    cd .. && rm -rf bcftools-${VERSION}*
 
 # Install bedtools
 RUN wget https://github.com/arq5x/bedtools2/releases/download/v2.28.0/bedtools-2.28.0.tar.gz && \
