@@ -46,8 +46,7 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
 
 RUN conda update conda && \
     conda clean --all --yes && \
-    conda install -y -c bioconda samtools vcftools bedtools plink2 bioconda snpeff snpsift bioconda numpy pandas
-
+    conda install -y -c bioconda samtools vcftools bedtools plink2 snpeff snpsift numpy pandas
 
 
 # Tidy up
