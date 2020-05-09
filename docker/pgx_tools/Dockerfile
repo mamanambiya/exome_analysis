@@ -39,16 +39,16 @@ RUN wget https://github.com/samtools/bcftools/releases/download/1.10.2/bcftools-
     make install && \
     cd .. && rm -rf bcftools-1.10.2*
 
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
-    /bin/bash ~/miniconda.sh -b -p /opt/conda && \
-    rm ~/miniconda.sh && \
-    ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
-    echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    echo "conda activate base" >> ~/.bashrc
+# RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
+#     /bin/bash ~/miniconda.sh -b -p /opt/conda && \
+#     rm ~/miniconda.sh && \
+#     ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
+#     echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
+#     echo "conda activate base" >> ~/.bashrc
 
-RUN conda install -y -c bioconda samtools vcftools bedtools plink2
-RUN conda install -y -c bioconda snpeff snpsift
-RUN conda install -y -c bioconda numpy pandas
+# RUN conda install -y -c bioconda samtools vcftools bedtools plink2
+# RUN conda install -y -c bioconda snpeff snpsift
+# RUN conda install -y -c bioconda numpy pandas
 
 
 # Tidy up
