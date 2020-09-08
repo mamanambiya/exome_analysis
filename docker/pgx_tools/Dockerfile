@@ -50,7 +50,7 @@ RUN conda update conda && \
 
 # Install R and R packages
 RUN conda clean --all --yes && \
-    conda install -y -c bioconda r-ggplot2 r-UpSetR r-dplyr r-tidyr r-data.table
+    conda install -y -c bioconda r-ggplot2 r-UpSetR r-dplyr r-tidyr r-data.table r-circlize
 # conflict: r-optparse, r-sm, r-tidyverse
 
 # Install python3.7 packages
