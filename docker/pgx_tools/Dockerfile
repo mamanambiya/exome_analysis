@@ -46,7 +46,7 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
 
 RUN conda update conda && \
     conda clean --all --yes && \
-    conda install -y -c bioconda samtools vcftools bedtools plink2 snpeff=4.3 snpsift numpy pandas python=3.7 eigensoft
+    conda install -y -c bioconda samtools vcftools bedtools plink plink2 snpeff=4.3 snpsift numpy pandas python=3.7 eigensoft
 
 # Install R and R packages
 RUN conda clean --all --yes && \
