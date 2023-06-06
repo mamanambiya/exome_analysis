@@ -14,7 +14,7 @@ FROM r-base
 # Install Basic tools
 
 ## install R packages
-RUN R --slave -e 'install.packages(c("venneuler", "tidyr",, "optparse", "data.table", "ggplot2", "dplyr", "reshape2", "grid"), repos="https://cloud.r-project.org/", dependencies=TRUE)'
+RUN R --slave -e 'install.packages(c("venneuler", "tidyr",, "optparse", "data.table", "ggplot2", "dplyr", "reshape2", "grid", "cairo", "sm"), repos="https://cloud.r-project.org/", dependencies=TRUE)'
 
 # Tidy up
 RUN rm -rf /tmp/*
