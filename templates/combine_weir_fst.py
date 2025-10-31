@@ -1,51 +1,39 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
-import argparse,sys
-import time
+import argparse
+import pandas as pd
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--fst_input", help="")
-parser.add_argument("--fst_output", help="")
+parser.add_argument("--weir_fst_files", default="${weir_fst_files}", help="")
+parser.add_argument("--weir_fst_out", default="${weir_fst_out}", help="")
+parser.add_argument("--fst_cutoff", default="${fst_cutoff}", help="")
 args = parser.parse_args()
 
-def combine_weir_fst(fst_input, fst_output):
+
+def combine_weir_fst(weir_fst_files, weir_fst_out, fst_cutoff=0.5):
     '''
     :param fts_2by2_input:
     :return fst_matrix_output:
     '''
-    fst_output_ = open(fst_output+".csv", 'w')
-    fst_output_hD = open(fst_output+"_HighDiff.csv", 'w')
-    fst_output_hD_1 = open(fst_output+"_HighDiff_pos.csv", 'w')
-    datas = fst_input.split(' ')
-    pops = []
-    for data in datas:
-        fst_data = data.split('__')
-        pop1 = fst_data[0]
-        pop2 = fst_data[1]
-        fst = fst_data[2]
-        pops.append(pop1+'.'+pop2+'.Fst')
-        if datas.index(data) == 0:
-            snps = [dat[0]+':'+dat[1] for dat in [ dat.split('\t') for dat in open(fst).readlines()[1:]]]
-            fst_data_ = {key:[] for key in snps}
-        pop_fst = [ dat.strip().split('\t') for dat in open(fst).readlines()[1:]]
-        for dat in pop_fst:
-            try:
-                fst_data_[dat[0]+':'+dat[1]].append(str(abs(float(dat[2]))))
-            except:
-                print  dat
-                fst_data_[dat[0]+':'+dat[1]].append('nan')
-    fst_output_.writelines(','.join(['CHRM:POS']+pops)+'\n')
-    fst_output_hD.writelines(','.join(['CHRM:POS']+pops)+'\n')
-    i = 0
-    for snp in snps:
-        fst_output_.writelines(','.join([snp]+fst_data_[snp])+'\n')
-        if any(i >= 0.5 for i in [float(t) for t in fst_data_[snp]]):
-            fst_output_hD.writelines(','.join([snp]+fst_data_[snp])+'\n')
-            fst_output_hD_1.writelines('\t'.join(snp.split(':'))+'\n')
-    fst_output_.close()
-    fst_output_hD.close()
-    fst_output_hD_1.close()
+    weirs = weir_fst_files.split(',')
+    fst_cutoff = float(fst_cutoff)
+    base = pd.read_csv(weirs[0], sep='\\s+', engine='python')
+    base = base[base.iloc[:, 2] >= fst_cutoff].reset_index().drop(columns=[
+        'index'])
+    base = base[['CHROM', 'POS']]
+    for weir in weirs[1:]:
+        data = pd.read_csv(weir, sep='\\s+', engine='python')
+        data = data[data.iloc[:, 2] >= fst_cutoff].reset_index().drop(columns=[
+            'index'])
+        data = data[['CHROM', 'POS']]
+        base = pd.concat([base, data])
+
+    base = base.groupby(by=['CHROM', 'POS']).size(
+    ).reset_index().rename(columns={0: "Count"})
+    base = base[base['Count'] >= 2].reset_index().drop(
+        columns=['index']).sort_values(['CHROM', 'POS'])
+    base.reset_index().drop(columns=['index']).drop_duplicates().to_csv(f'{weir_fst_out}.csv', index=False,
+                                                                        header=True, sep='\\t')
 
 
-
-combine_weir_fst(args.fst_input, args.fst_output)
+combine_weir_fst(args.weir_fst_files, args.weir_fst_out, args.fst_cutoff)

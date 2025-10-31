@@ -19,6 +19,7 @@ def intersection(main_tsv, tsv_list, private_list_file):
     :return:
     """
     private_out = open(private_list_file, 'w')
+    known_out = open(private_list_file+"_known", 'w')
     known_sites = set()
     for tsv in tsv_list.split(';'):
         for line in open(tsv):
@@ -28,7 +29,8 @@ def intersection(main_tsv, tsv_list, private_list_file):
                     if float(line[1]) > 0 :
                         known_sites.add(line[0])
                 except:
-                    print "Not valid MAF"
+                    continue
+                    # print "Not valid MAF", line[1]
 
     ncount = 1
     for line in open(main_tsv):
@@ -39,6 +41,8 @@ def intersection(main_tsv, tsv_list, private_list_file):
         if chrm != '#':
             if data[0] not in known_sites:
                 private_out.writelines('\\t'.join([chrm, pos, pos])+"\\n")
+            else:
+                known_out.writelines('\\t'.join([chrm, pos, pos])+"\\n")
         ncount += 1
 
     private_out.close()

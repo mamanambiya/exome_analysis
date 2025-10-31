@@ -21,6 +21,7 @@ dataset_SO_terms_MAF_summary <- "${dataset_SO_terms_MAF_summary}"
 dataset_pgxFunctionalClassesCounts_tiff <- "${dataset_pgxFunctionalClassesCounts_tiff}"
 dataset_pgxFunctionalClassesByFrequency_tiff <- "${dataset_pgxFunctionalClassesByFrequency_tiff}"
 
+
 # Analyse the functional annotations of variants
 functionalSO <- read.table(dataset_SO_terms_MAF_summary, header=T)
 # Drop 0 count terms
@@ -39,11 +40,13 @@ rownames(functionalSO) <- NULL
 functionalSOplot <- ggplot(functionalSO, aes(x = terms, y = countAll) ) +
     geom_point(shape=19) +
     theme_bw() + xlab("Consequence") +  ylab("Count") +
-    annotate("text", size=3, fontface="bold", y=functionalSO\$countAll+2800,
+    scale_shape_manual(values=c(15:18)) +
+    annotate("text", size=3, y=functionalSO\$countAll+4200,
     x=1:nrow(functionalSO), label=functionalSO\$countAll) +
-    theme(legend.position="none", axis.text.x=element_text(angle = 90, hjust = 1, vjust = 0.5, size=12, face=c("bold")))
+    theme(legend.position="none", axis.text.x=element_text(angle = 90, hjust = 1, vjust = 0.5, size=10),
+    axis.text.y=element_text(size=9))
 functionalSOplot
-ggsave(dataset_pgxFunctionalClassesCounts_tiff, height=5.36*0.75, width=7.58, units='in', dpi=120)
+ggsave(dataset_pgxFunctionalClassesCounts_tiff, height=5.36*0.75, width=7.58, units='in', dpi=200)
 
 #Make Frequency dataframe
 functionalSOFreq <- NULL
@@ -56,33 +59,32 @@ functionalSOFreq\$freqGreater0.05 <- functionalSO\$countGreater0.05/sum(function
 functionalSOFreq <- as.data.frame(functionalSOFreq)
 # Add spaces in names for better plotting
 # colnames(functionalSOFreq) <- c("terms", "freqAll", "Singletons", "Singletons - MAF 0.01", "MAF 0.01 - 0.05","MAF greater than 0.05")
-colnames(functionalSOFreq) <- c("terms", "freqAll", "Singletons", "Singletons - MAF 0.01", "MAF 0.01 - 0.05", "MAF greater than 0.05")
+colnames(functionalSOFreq) <- c("terms", "freqAll", "Singletons", "Non-Singletons - MAF <= 0.01", "MAF 0.01 - 0.05", "MAF >= 0.05")
 
 # Test for differences between the different counts in the different frequency classes
 # Make a dataframe to put significance test results in a set a count for indexing
 functionalSignificanceDF <- data.frame(ncol=2, nrow=length(unique(functionalSO\$term)))
 count <- 1
 for (functional in unique(functionalSO\$term)){
-    sumTerms <- colSums(functionalSO[,3:6])
-    functionalCount <- functionalSO[,3:6][functionalSO\$term==functional,]
-    remainderCount <- sumTerms-functionalCount
-    functionalMatrix <- as.matrix(rbind(functionalCount, remainderCount))
-    # increase workspace to prevent fisher test from crashing
-    # fisherFunctional <- fisher.test(functionalMatrix, workspace=100000000, hybrid=TRUE, simulate.p.value=TRUE)
-    fisherFunctional <- chisq.test(functionalMatrix)
-    functionalSignificanceDF[count,1] <- functional
-    functionalSignificanceDF[count,2] <- fisherFunctional\$p.value
-    count <- count +1
+  sumTerms <- colSums(functionalSO[,3:6])
+  functionalCount <- functionalSO[,3:6][functionalSO\$term==functional,]
+  remainderCount <- sumTerms-functionalCount
+  functionalMatrix <- as.matrix(rbind(functionalCount, remainderCount))
+  # increase workspace to prevent fisher test from crashing
+  fisherFunctional <- fisher.test(functionalMatrix, workspace=100000000000000, hybrid=TRUE, simulate.p.value=TRUE, B = 1e7)
+  #fisherFunctional <- chisq.test(functionalMatrix)
+  functionalSignificanceDF[count,1] <- functional
+  functionalSignificanceDF[count,2] <- fisherFunctional\$p.value
+  count <- count +1
 }
-
 
 # Name columns
 colnames(functionalSignificanceDF) <- c("terms","fisherPvalue")
 # Perform Bonferonni adjustmet
-functionalSignificanceDF\$fisherPvalueBonferroni <- p.adjust(functionalSignificanceDF\$fisherPvalue, method="bonferroni", n=length(functionalSignificanceDF\$fisherPvalue))
+functionalSignificanceDF\$fisherPvalueBonferroni <- p.adjust(functionalSignificanceDF\$fisherPvalue, method="fdr", n=length(functionalSignificanceDF\$fisherPvalue))
 # See which classes differ significantly after multiple testing correction
 functionalSignificanceDF[functionalSignificanceDF\$fisherPvalueBonferroni<0.05,]
-functionalSignificanceDF[functionalSignificanceDF\$fisherPvalueBonferroni!=0,]
+functionalSignificanceDF[functionalSignificanceDF\$fisherPvalueBonferroni>0.0,]
 
 # Append p-values to frequency dataframe
 functionalSOFreq <- merge(functionalSOFreq, functionalSignificanceDF, by="terms")
@@ -99,17 +101,18 @@ mfunctionalSOFreq <- melt(functionalSOFreq, id=c("terms","fisherPvalueBonferroni
 mfunctionalSOFreq <- mfunctionalSOFreq[mfunctionalSOFreq\$variable!="freqAll",]
 # Plot consequences that occur at a frequency of at least 1% in total
 functionalFreqPlot <- ggplot(mfunctionalSOFreq, aes(x = terms, y = value) ) +
-    geom_point(aes(shape=variable, col=variable), size=4) +
-    theme_bw() + xlab("Consequence") +  ylab("Proportion") +
-    scale_shape_manual(values=c(15:18)) +
-    coord_cartesian(ylim = c(0.00, 0.45)) +
-    scale_y_continuous(limits = c(0.00, 0.45)) +
-    annotate("text", size=3, fontface="bold", y=0.19, angle=90,
-    x=significantLabels\$index, label=significantLabels\$fisherPvalueBonferroni) +
-    theme(legend.title=element_blank(), legend.position="bottom",legend.key=element_blank(),
-    axis.text.x=element_text(angle = 90, hjust = 1, vjust = 0.5, size=12, face=c("bold")))
+  geom_point(aes(shape=variable, col=variable), size=4) +
+  theme_bw() + xlab("Consequence") +  ylab("Proportion") +
+  scale_shape_manual(values=c(15:18)) +
+  coord_cartesian(ylim = c(0.00, 0.45)) +
+  scale_y_continuous(limits = c(0.00, 0.45)) +
+  annotate("text", size=3, y=0.27, angle=90,
+           x=significantLabels\$index, label=significantLabels\$fisherPvalueBonferroni) +
+  theme(legend.title=element_blank(), legend.position="bottom",legend.key=element_blank(),
+        axis.text.x=element_text(angle = 90, hjust = 1, vjust = 0.5, size=10),
+        axis.text.y=element_text(size=10))
 functionalFreqPlot
-ggsave(dataset_pgxFunctionalClassesByFrequency_tiff, height=5.36*1.25, width=7.58, units='in', dpi=120)
+ggsave(dataset_pgxFunctionalClassesByFrequency_tiff, height=5.36*1.25, width=7.58, units='in', dpi=200)
 
 # plot_grid(functionalSOplot, functionalFreqPlot,
 # labels = c("A", "B"), align = "v", nrow=2)

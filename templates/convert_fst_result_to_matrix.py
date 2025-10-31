@@ -4,8 +4,9 @@ import argparse,sys
 import time as t
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--fts_2by2_input", help="")
-parser.add_argument("--fst_matrix_output", help="")
+parser.add_argument("--fts_2by2_input", help="", default="${fts_2by2_input}")
+parser.add_argument("--fst_matrix_output", help="",
+                    default="${fst_matrix_output}")
 args = parser.parse_args()
 
 def convert_fts_result_matrix(fts_2by2_input, fst_matrix_output):
@@ -18,10 +19,11 @@ def convert_fts_result_matrix(fts_2by2_input, fst_matrix_output):
     fst_matrix = {}
     fst_matrix_out = open(fst_matrix_output, 'w')
     for line in open(fts_2by2_input):
-        line = line.strip().split()
-        pops.append(line[0])
-        pops.append(line[1])
-        datas[line[0]+'-'+line[1]] = str(float(line[2])*100)
+        if 'Weighted_FST' not in line:
+            line = line.strip().split()
+            pops.append(line[0])
+            pops.append(line[1])
+            datas[line[0]+'-'+line[1]] = str(float(line[2])*100)
     pops = sorted(list(set(pops)))
     for pop1 in pops:
         if pop1 not in fst_matrix:
@@ -33,9 +35,9 @@ def convert_fts_result_matrix(fts_2by2_input, fst_matrix_output):
                 fst_matrix[pop1].append(datas[pop2+'-'+pop1])
             else:
                 fst_matrix[pop1].append('0')
-    fst_matrix_out.writelines(','.join(['pop']+pops)+'\n')
+    fst_matrix_out.writelines(','.join(['pop']+pops)+'\\n')
     for pop in pops:
-        fst_matrix_out.writelines(','.join([pop]+fst_matrix[pop])+'\n')
+        fst_matrix_out.writelines(','.join([pop]+fst_matrix[pop])+'\\n')
     fst_matrix_out.close()
 
 convert_fts_result_matrix(args.fts_2by2_input, args.fst_matrix_output)

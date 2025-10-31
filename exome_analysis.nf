@@ -157,7 +157,7 @@ process concat_dataset_pop {
             -Oz -o ${pop}.tmp1.vcf.gz
         ## Recalculate AC, AN, AF
         bcftools +fill-tags ${pop}.tmp1.vcf.gz -Oz -o ${pop}.tmp2.vcf.gz
-        bcftools sort ${pop}.tmp2.vcf.gz -Oz -o ${vcf_out}
+        bcftools sort ${pop}.tmp2.vcf.gz -T . -Oz -o ${vcf_out}
         bcftools index --tbi -f ${vcf_out}
         rm ${pop}.tmp*.vcf.gz
         """
@@ -472,7 +472,7 @@ process annotate_dataset_snpeff{
     script:
         vcf_out = "${file(vcf_file.baseName).baseName}_snpeff.vcf"
         """
-        snpEff -Xmx${task.memory.toGiga()}g \
+        snpEff -Xmx${task.memory.toGiga()/2}g \
             ${params.snpEff_human_db} -lof \
             -stats ${dataset}_snpeff.html \
             -csvStats ${dataset}_snpeff.csv \
@@ -485,7 +485,7 @@ process annotate_dataset_snpeff{
 annotate_dataset_snpeff.into{ annotate_dataset_snpeff; annotate_dataset_snpeff_sub}
 
 """
-Step 5: Annotate dbSNP IDs using snpSift
+Step 5: Annotate dbSNP IDs using SnpSift
 """
 annotate_dataset_snpeff.into { annotate_dataset_snpeff; annotate_dataset_snpeff_1 }
 process annotate_dataset_dbsnp{
@@ -499,7 +499,7 @@ process annotate_dataset_dbsnp{
     script:
         vcf_out = "${file(vcf_file.baseName).baseName}_dbsnp.vcf"
         """
-        java -Xmx${task.memory.toGiga()}g -jar ${params.snpsift} \
+        java -Xmx${task.memory.toGiga()}g -jar ${params.SnpSift} \
             annotate \
             ${params.snpEff_dbsnp_vcf} \
             -dataDir ${params.snpEff_database} \
@@ -512,7 +512,7 @@ annotate_dataset_dbsnp.into{ annotate_dataset_dbsnp; annotate_dataset_dbsnp_sub 
 
 
 """
-Step 6: Annotate GWAS Catalogue using snpSift
+Step 6: Annotate GWAS Catalogue using SnpSift
 """
 annotate_dataset_dbsnp.into {annotate_dataset_dbsnp; annotate_dataset_dbsnp_1}
 process annotate_dataset_gwascat{
@@ -527,7 +527,7 @@ process annotate_dataset_gwascat{
     script:
         vcf_out = "${file(vcf_file.baseName).baseName}_gwascat.vcf"
         """
-        java -Xmx${task.memory.toGiga()}g -jar ${params.snpsift} \
+        java -Xmx${task.memory.toGiga()}g -jar ${params.SnpSift} \
             gwasCat \
             -db ${params.gwascat_b37} \
             ${vcf_file} \
@@ -557,7 +557,7 @@ process annotate_dataset_clinvar {
     script:
         vcf_out = "${file(vcf_file.baseName).baseName}_clinvar.vcf"
         """
-        java -Xmx${task.memory.toGiga()}g -jar ${params.snpsift} \
+        java -Xmx${task.memory.toGiga()}g -jar ${params.SnpSift} \
             annotate \
             ${params.clinvar} \
             ${vcf_file} \
@@ -586,7 +586,7 @@ process annotate_cosmic_baylor {
     script:
         vcf_out = "${file(vcf_file.baseName).baseName}_cosmic.vcf"
         """
-        java -Xmx${task.memory.toGiga()}g -jar ${params.snpsift} \
+        java -Xmx${task.memory.toGiga()}g -jar ${params.SnpSift} \
             annotate \
             ${params.cosmic} \
             ${vcf_file} \
@@ -886,7 +886,7 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 ////    script:
 ////        vcf_out = "${file(vcf_file.baseName).baseName}_dbnsfp.vcf"
 ////        """
-////        snpsift dbnsfp \
+////        SnpSift dbnsfp \
 ////            -f Ancestral_allele,SIFT_score,SIFT_converted_rankscore,SIFT_pred,Uniprot_acc_Polyphen2,Uniprot_id_Polyphen2,Uniprot_aapos_Polyphen2,Polyphen2_HDIV_score,Polyphen2_HDIV_rankscore,Polyphen2_HDIV_pred,Polyphen2_HVAR_score,Polyphen2_HVAR_rankscore,Polyphen2_HVAR_pred,LRT_score,LRT_converted_rankscore,LRT_pred,LRT_Omega,MutationTaster_score,MutationTaster_converted_rankscore,MutationTaster_pred,MutationTaster_model,MutationTaster_AAE,MutationAssessor_UniprotID,MutationAssessor_variant,MutationAssessor_score,MutationAssessor_score_rankscore,MutationAssessor_pred,FATHMM_score,FATHMM_converted_rankscore,FATHMM_pred,PROVEAN_score,PROVEAN_converted_rankscore,PROVEAN_pred,Transcript_id_VEST3,Transcript_var_VEST3,VEST3_score,VEST3_rankscore,MetaSVM_score,MetaSVM_rankscore,MetaSVM_pred,MetaLR_score,MetaLR_rankscore,MetaLR_pred,Reliability_index,M-CAP_score,M-CAP_rankscore,M-CAP_pred,REVEL_score,REVEL_rankscore,MutPred_score,MutPred_rankscore,MutPred_protID,MutPred_AAchange,MutPred_Top5features,CADD_raw,CADD_raw_rankscore,CADD_phred,DANN_score,DANN_rankscore,fathmm-MKL_coding_score,fathmm-MKL_coding_rankscore,fathmm-MKL_coding_pred,fathmm-MKL_coding_group,Eigen_coding_or_noncoding,Eigen-raw,Eigen-phred,Eigen-PC-raw,Eigen-PC-phred,Eigen-PC-raw_rankscore,GenoCanyon_score,GenoCanyon_score_rankscore,integrated_fitCons_score,integrated_fitCons_score_rankscore,integrated_confidence_value,GM12878_fitCons_score,GM12878_fitCons_score_rankscore,GM12878_confidence_value,H1-hESC_fitCons_score,H1-hESC_fitCons_score_rankscore,H1-hESC_confidence_value,HUVEC_fitCons_score,HUVEC_fitCons_score_rankscore,HUVEC_confidence_value,GERP++_NR,GERP++_RS,GERP++_RS_rankscore,phyloP100way_vertebrate,phyloP100way_vertebrate_rankscore,phyloP20way_mammalian,phyloP20way_mammalian_rankscore,phastCons100way_vertebrate,phastCons100way_vertebrate_rankscore,phastCons20way_mammalian,phastCons20way_mammalian_rankscore,SiPhy_29way_pi,SiPhy_29way_logOdds,SiPhy_29way_logOdds_rankscore  \
 ////            -v -db ${params.dbnsfp_db} \
 ////            ${vcf_file} -v > ${vcf_out}
@@ -927,7 +927,7 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //            ${dataset_vcfs} \
 //            -Oz -o ${dataset}.tmp.vcf.gz
 //        zcat ${dataset}.tmp.vcf.gz | \
-//        snpsift extractFields - -e "." CHROM POS ANN[*].GENE | \
+//        SnpSift extractFields - -e "." CHROM POS ANN[*].GENE | \
 //        grep -E "UGT|HLA" | \
 //        awk '{print \$1"\\t"\$2}' > ${dataset}.ignore.tsv
 //        bcftools view \
@@ -990,7 +990,7 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //    script:
 //        vcf_out = "${file(vcf_file.baseName).baseName}_dbnsfp.vcf"
 //        """
-//        snpsift dbnsfp \
+//        SnpSift dbnsfp \
 //            -f Ancestral_allele,SIFT_score,SIFT_converted_rankscore,SIFT_pred,Uniprot_acc_Polyphen2,Uniprot_id_Polyphen2,Uniprot_aapos_Polyphen2,Polyphen2_HDIV_score,Polyphen2_HDIV_rankscore,Polyphen2_HDIV_pred,Polyphen2_HVAR_score,Polyphen2_HVAR_rankscore,Polyphen2_HVAR_pred,LRT_score,LRT_converted_rankscore,LRT_pred,LRT_Omega,MutationTaster_score,MutationTaster_converted_rankscore,MutationTaster_pred,MutationTaster_model,MutationTaster_AAE,MutationAssessor_UniprotID,MutationAssessor_variant,MutationAssessor_score,MutationAssessor_score_rankscore,MutationAssessor_pred,FATHMM_score,FATHMM_converted_rankscore,FATHMM_pred,PROVEAN_score,PROVEAN_converted_rankscore,PROVEAN_pred,Transcript_id_VEST3,Transcript_var_VEST3,VEST3_score,VEST3_rankscore,MetaSVM_score,MetaSVM_rankscore,MetaSVM_pred,MetaLR_score,MetaLR_rankscore,MetaLR_pred,Reliability_index,M-CAP_score,M-CAP_rankscore,M-CAP_pred,REVEL_score,REVEL_rankscore,MutPred_score,MutPred_rankscore,MutPred_protID,MutPred_AAchange,MutPred_Top5features,CADD_raw,CADD_raw_rankscore,CADD_phred,DANN_score,DANN_rankscore,fathmm-MKL_coding_score,fathmm-MKL_coding_rankscore,fathmm-MKL_coding_pred,fathmm-MKL_coding_group,Eigen_coding_or_noncoding,Eigen-raw,Eigen-phred,Eigen-PC-raw,Eigen-PC-phred,Eigen-PC-raw_rankscore,GenoCanyon_score,GenoCanyon_score_rankscore,integrated_fitCons_score,integrated_fitCons_score_rankscore,integrated_confidence_value,GM12878_fitCons_score,GM12878_fitCons_score_rankscore,GM12878_confidence_value,H1-hESC_fitCons_score,H1-hESC_fitCons_score_rankscore,H1-hESC_confidence_value,HUVEC_fitCons_score,HUVEC_fitCons_score_rankscore,HUVEC_confidence_value,GERP++_NR,GERP++_RS,GERP++_RS_rankscore,phyloP100way_vertebrate,phyloP100way_vertebrate_rankscore,phyloP20way_mammalian,phyloP20way_mammalian_rankscore,phastCons100way_vertebrate,phastCons100way_vertebrate_rankscore,phastCons20way_mammalian,phastCons20way_mammalian_rankscore,SiPhy_29way_pi,SiPhy_29way_logOdds,SiPhy_29way_logOdds_rankscore  \
 //            -v -db ${params.dbnsfp_db} \
 //            ${vcf_file} -v > ${vcf_out}
@@ -1037,7 +1037,7 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //        lof_cutoff1 = lof_cutoff.replaceAll('\\.', '')
 //        """
 //        ## Filter VCf for LOF > 1
-//        zcat ${dataset_vcf} | snpsift filter "LOF[*].PERC >= ${lof_cutoff}" | bgzip -c > ${dataset_out}.lof.tmp.vcf.gz
+//        zcat ${dataset_vcf} | SnpSift filter "LOF[*].PERC >= ${lof_cutoff}" | bgzip -c > ${dataset_out}.lof.tmp.vcf.gz
 //        ## Remove multi-allelic variants # --max-alleles 2
 //        ## Remove singleton and doubleton # --mac 2
 //        ## Remove variants with a Lof_flag
@@ -1049,7 +1049,7 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //            bgzip -c > ${dataset_out}.lof${lof_cutoff1}.vcf.gz
 //        # CALCULATE WHICH GENES HARBOUR LoF MUTATIONS and HOW MANY
 //        # Extract information from vcf info file
-//        zcat ${dataset_out}.lof${lof_cutoff1}.vcf.gz | snpsift extractFields - -e "." \
+//        zcat ${dataset_out}.lof${lof_cutoff1}.vcf.gz | SnpSift extractFields - -e "." \
 //            CHROM POS REF ALT AC ANN[0].GENE MAF KG_AF KG_AFR_AF KG_EUR_AF KG_AMR_AF KG_EAS_AF gnomAD_AF gnomAD_AFR_AF gnomAD_FIN_AF ExAC_AF ExAC_AFR_AF AGVP_AF SAHGP_AF "ANN[0].EFFECT" CLNDN CDS GWASCAT_TRAIT GWASCAT_P_VALUE GWASCAT_PUBMED_ID\
 //            > ${dataset_out}.lof${lof_cutoff1}.INFO
 //        bcftools index --tbi -f ${dataset_out}.lof${lof_cutoff1}.vcf.gz
@@ -1204,7 +1204,7 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //        """
 //        # Create file with allele count/number/freq INFO fields from vcf
 //        zcat ${dataset_biall_vcf} \
-//            | snpsift extractFields - -e "." CHROM POS ID REF ALT AC AN AF "ANN[0].GENE" MAF KG_AFR_AF ExAC_AF ExAC_AFR_AF gnomAD_AF gnomAD_AFR_AF AGVP_AF "ANN[0].EFFECT" \
+//            | SnpSift extractFields - -e "." CHROM POS ID REF ALT AC AN AF "ANN[0].GENE" MAF KG_AFR_AF ExAC_AF ExAC_AFR_AF gnomAD_AF gnomAD_AFR_AF AGVP_AF "ANN[0].EFFECT" \
 //            > ${dataset}.biall.INFO
 //        echo "UniqueID\tCHROM\tPOS\tID\tREF\tALT\tAC\tAN\tAF\tGene\tAIBST_Alt_FREQ\tKG_AFR_Alt_FREQ\tExAC_Alt_FRE\tExAC_AFR_Alt_FRE\tgnomAD_Alt_FRE\tgnomAD_AFR_Alt_FREQ\tAGVP_Alt_FREQ\tEFFECT" > ${dataset}.biall.INFO.rsID
 //        awk 'NR>1 {print \$1":"\$2":"\$5"\t"\$0}' ${dataset}.biall.INFO >> ${dataset}.biall.INFO.rsID
@@ -1472,7 +1472,7 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //        fst_log = "${dataset}.${POPS[0]}_${POPS[1]}.fst.log"
 //        """
 //        ## Filter for synonymous variants
-//        zcat ${dataset_vcf} | snpsift filter "ANN[*].EFFECT has 'synonymous_variant'" | bcftools view --min-ac 2 | bgzip -c > ${dataset}.fst.syn.vcf.gz
+//        zcat ${dataset_vcf} | SnpSift filter "ANN[*].EFFECT has 'synonymous_variant'" | bcftools view --min-ac 2 | bgzip -c > ${dataset}.fst.syn.vcf.gz
 //        ## Compute Fst for pair of populations, here the log file will be used to extract the weighted mean fst
 //        vcftools \
 //            --gzvcf ${dataset}.fst.syn.vcf.gz \
@@ -1568,7 +1568,7 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //            --recode-INFO-all --recode --stdout \
 //            | gzip -c > ${"${fst_out}_HighDiff.vcf.gz"}
 //        zcat ${fst_out}_HighDiff.vcf.gz \
-//            | snpsift extractFields - -e "." CHROM POS ID REF ALT AC AF MAF "ANN[0].GENE" AGVP_AF KG_AFR_AF ExAC_AFR_AF gnomAD_AFR_AF "ANN[0].EFFECT" CLNDN CDS GWASCAT_TRAIT GWASCAT_P_VALUE GWASCAT_PUBMED_ID\
+//            | SnpSift extractFields - -e "." CHROM POS ID REF ALT AC AF MAF "ANN[0].GENE" AGVP_AF KG_AFR_AF ExAC_AFR_AF gnomAD_AFR_AF "ANN[0].EFFECT" CLNDN CDS GWASCAT_TRAIT GWASCAT_P_VALUE GWASCAT_PUBMED_ID\
 //            | awk '{print \$1":"\$2"\\t"\$0}' > ${fst_out}_HighDiff.ann.csv
 //        """
 //}
@@ -1663,7 +1663,7 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //        bcftools index --tbi -f ${dataset}.clinical.vcf.gz
 //        vcftools --gzvcf ${dataset}.clinical.vcf.gz \
 //            --012 --out ${dataset}.ClinPerSample
-//        zcat ${dataset}.clinical.vcf.gz | snpsift extractFields - -e "." \
+//        zcat ${dataset}.clinical.vcf.gz | SnpSift extractFields - -e "." \
 //            CHROM POS ID REF ALT AC ANN[0].GENE MAF KG_AF KG_AFR_AF KG_EUR_AF KG_AMR_AF KG_EAS_AF gnomAD_AF gnomAD_AFR_AF gnomAD_FIN_AF ExAC_AF ExAC_AFR_AF AGVP_AF SAHGP_AF "ANN[0].EFFECT" CLNDN CDS GWASCAT_TRAIT GWASCAT_P_VALUE GWASCAT_PUBMED_ID\
 //            > ${dataset}.clinical.INFO
 //        rm -f ${dataset}.clinical_.vcf.gz
@@ -1898,7 +1898,7 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //            zcat \$vcf | grep -v ^# | awk '{print \$3}' >> ${dataset}.diff.snps.rsIDs
 //            zcat \$vcf | awk '!/^(\$|#)/ {print \$3" "\$1":"\$2":"\$5}' >> ${dataset}.rsIndexPopDiff.txt
 //            #Extract gene name and variant type
-//            zcat \$vcf | snpsift extractFields - -e "." ANN[0].GENE ANN[0].EFFECT | \
+//            zcat \$vcf | SnpSift extractFields - -e "." ANN[0].GENE ANN[0].EFFECT | \
 //                awk 'NR>1 {print \$0}' >> ${dataset}.temp.genes.pop.diff.snps.genotypes
 //        done
 //        # Generate new vcf
@@ -2020,7 +2020,7 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //   script:
 //        """
 //        # Generate vcf for each of the genes in the study independently
-//        snpsift filter "ANN[*].GENE = '${gene}'" ${dataset_vcf} -v | bgzip -c > ${dataset}_${gene}.vcf.gz
+//        SnpSift filter "ANN[*].GENE = '${gene}'" ${dataset_vcf} -v | bgzip -c > ${dataset}_${gene}.vcf.gz
 //        """
 //}
 //
@@ -2244,21 +2244,21 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //       echo -e "Total Singletons ; \$(grep -v "^CHR" ${base}.singletons| wc -l)" >> ${report}
 //
 //       ## Nonsynonymous/missense
-//       echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file} | snpsift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## Synonymous
-//       echo -e "Synonymous SNV ; \$(zcat ${vcf_file} | snpsift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Synonymous SNV ; \$(zcat ${vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## Stop gained
-//       echo -e "Stop gained SNV ; \$(zcat ${vcf_file} | snpsift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Stop gained SNV ; \$(zcat ${vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## Stop lost
-//       echo -e "Stop lost SNV ; \$(zcat ${vcf_file} | snpsift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Stop lost SNV ; \$(zcat ${vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## Splicing
-//       echo -e "Splicing SNV ; \$(zcat ${vcf_file} | snpsift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Splicing SNV ; \$(zcat ${vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## LOF
-//       echo -e "LOF SNV ; \$(zcat ${vcf_file} | snpsift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "LOF SNV ; \$(zcat ${vcf_file} | SnpSift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
 //
 //       ## Generate VCF of protein conding variants
 //       zcat ${vcf_file} | \
-//       snpsift filter " \
+//       SnpSift filter " \
 //           (ANN[*].EFFECT has 'synonymous_variant') || \
 //           (ANN[*].EFFECT has 'missense_variant') || \
 //           (ANN[*].EFFECT has 'stop_gained') || \
@@ -2291,7 +2291,7 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 ////       report = "${base}_all_variants_report.csv"
 ////       """
 ////       zcat ${vcf_file} | \
-////       snpsift filter " \
+////       SnpSift filter " \
 ////           (ANN[*].EFFECT has 'synonymous_variant') || \
 ////           (ANN[*].EFFECT has 'missense_variant') || \
 ////           (ANN[*].EFFECT has 'stop_gained') || \
@@ -2334,17 +2334,17 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 ////       echo -e "Total Singletons ; \$(grep -v "^CHR" ${base}.singletons| wc -l)" >> ${report}
 ////
 ////       ## Nonsynonymous/missense
-////       echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file} | snpsift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
+////       echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
 ////       ## Synonymous
-////       echo -e "Synonymous SNV ; \$(zcat ${vcf_file} | snpsift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
+////       echo -e "Synonymous SNV ; \$(zcat ${vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
 ////       ## Stop gained
-////       echo -e "Stop gained SNV ; \$(zcat ${vcf_file} | snpsift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
+////       echo -e "Stop gained SNV ; \$(zcat ${vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
 ////       ## Stop lost
-////       echo -e "Stop lost SNV ; \$(zcat ${vcf_file} | snpsift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
+////       echo -e "Stop lost SNV ; \$(zcat ${vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
 ////       ## Splicing
-////       echo -e "Splicing SNV ; \$(zcat ${vcf_file} | snpsift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
+////       echo -e "Splicing SNV ; \$(zcat ${vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
 ////       ## LOF
-////       echo -e "LOF SNV ; \$(zcat ${vcf_file} | snpsift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
+////       echo -e "LOF SNV ; \$(zcat ${vcf_file} | SnpSift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
 ////       """
 ////}
 //
@@ -2373,17 +2373,17 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //       echo -e "Exome Singletons ; \$( vcftools --gzvcf ${base}_coding.vcf.gz --singletons --stdout | grep -v "^CHR" | wc -l)" >> ${report}
 //       ## Singletons
 //       ## Nonsynonymous/missense
-//       echo -e "Nonsynonymous SNV ; \$(zcat ${base}_coding.vcf.gz | snpsift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Nonsynonymous SNV ; \$(zcat ${base}_coding.vcf.gz | SnpSift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## Synonymous
-//       echo -e "Synonymous SNV ; \$(zcat ${base}_coding.vcf.gz | snpsift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Synonymous SNV ; \$(zcat ${base}_coding.vcf.gz | SnpSift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## Stop gained
-//       echo -e "Stop gained SNV ; \$(zcat ${base}_coding.vcf.gz | snpsift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Stop gained SNV ; \$(zcat ${base}_coding.vcf.gz | SnpSift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## Stop lost
-//       echo -e "Stop lost SNV ; \$(zcat ${base}_coding.vcf.gz | snpsift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Stop lost SNV ; \$(zcat ${base}_coding.vcf.gz | SnpSift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## Splicing
-//       echo -e "Splicing SNV ; \$(zcat ${base}_coding.vcf.gz | snpsift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Splicing SNV ; \$(zcat ${base}_coding.vcf.gz | SnpSift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## LOF
-//       echo -e "LOF SNV ; \$(zcat ${base}_coding.vcf.gz | snpsift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "LOF SNV ; \$(zcat ${base}_coding.vcf.gz | SnpSift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
 //       """
 //}
 //
@@ -2496,17 +2496,17 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //       ## Singletons
 //       echo -e "Exome Singletons ; \$(bcftools view -i 'AC=1' ${vcf_file_coding} --regions-file ${singletons} | grep -v "^#" | wc -l)" >> ${report}
 //       ## Nonsynonymous/missense
-//       echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'missense_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'missense_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //       ## Synonymous
-//       echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'synonymous_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'synonymous_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //       ## Stop gained
-//       echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_gained')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_gained')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //       ## Stop lost
-//       echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_lost')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_lost')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //       ## Splicing
-//       echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'ssplice_site_region')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'ssplice_site_region')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //       ## LOF
-//       echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(LOF[*].PERC >= 0.5)" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(LOF[*].PERC >= 0.5)" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //       """
 //}
 //
@@ -2665,17 +2665,17 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //       echo -e "Exome Singletons ; \$(bcftools view -i 'AC=1' ${vcf_file_coding} | grep -v "^#" | wc -l)" >> ${report}
 //       ## Singletons
 //       ## Nonsynonymous/missense
-//       echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## Synonymous
-//       echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## Stop gained
-//       echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## Stop lost
-//       echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## Splicing
-//       echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
 //       ## LOF
-//       echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
 //       """
 //}
 //
@@ -2786,17 +2786,17 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //       ## Singletons
 //       echo -e "Exome Singletons ; \$(bcftools view -i 'AC=1' ${vcf_file_coding} | grep -v "^#" | wc -l)" >> ${report}
 //       ## Nonsynonymous/missense
-//       echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'missense_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'missense_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //       ## Synonymous
-//       echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'synonymous_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'synonymous_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //       ## Stop gained
-//       echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_gained')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_gained')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //       ## Stop lost
-//       echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_lost')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_lost')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //       ## Splicing
-//       echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'ssplice_site_region')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'ssplice_site_region')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //       ## LOF
-//       echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(LOF[*].PERC >= 0.5)" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//       echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(LOF[*].PERC >= 0.5)" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //       """
 //}
 //
@@ -2908,17 +2908,17 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //        echo -e "Exome Singletons ; \$(bcftools view -i 'AC=1' ${vcf_file_coding} | grep -v "^#" | wc -l)" >> ${report}
 //        ## Singletons
 //        ## Nonsynonymous/missense
-//        echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## Synonymous
-//        echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## Stop gained
-//        echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## Stop lost
-//        echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## Splicing
-//        echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## LOF
-//        echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
 //        """
 //}
 //
@@ -3016,17 +3016,17 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //        ## Singletons
 //        echo -e "Exome Singletons ; \$(bcftools view -i 'AC=1' ${vcf_file_coding} | grep -v "^#" | wc -l)" >> ${report}
 //        ## Nonsynonymous/missense
-//        echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'missense_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'missense_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## Synonymous
-//        echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'synonymous_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'synonymous_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## Stop gained
-//        echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_gained')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_gained')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## Stop lost
-//        echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_lost')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_lost')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## Splicing
-//        echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'ssplice_site_region')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'ssplice_site_region')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## LOF
-//        echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(LOF[*].PERC >= 0.5)" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(LOF[*].PERC >= 0.5)" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        """
 //}
 //
@@ -3142,17 +3142,17 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //        ## Singletons
 //        echo -e "Exome Singletons ; \$(bcftools view -i 'AC=1' ${vcf_file_coding} | grep -v "^#" | wc -l)" >> ${report}
 //        ## Nonsynonymous/missense
-//        echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## Synonymous
-//        echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## Stop gained
-//        echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## Stop lost
-//        echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## Splicing
-//        echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## LOF
-//        echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
 //        """
 //}
 //
@@ -3189,17 +3189,17 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //        ## Singletons
 //        echo -e "Exome Singletons ; \$(bcftools view -i 'AC=1' ${ap_vcf_file} | grep -v "^#" | wc -l)" >> ${report}
 //        ## Nonsynonymous/missense
-//        echo -e "Nonsynonymous SNV ; \$(zcat ${ap_vcf_file} | snpsift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Nonsynonymous SNV ; \$(zcat ${ap_vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'missense_variant')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## Synonymous
-//        echo -e "Synonymous SNV ; \$(zcat ${ap_vcf_file} | snpsift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Synonymous SNV ; \$(zcat ${ap_vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'synonymous_variant')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## Stop gained
-//        echo -e "Stop gained SNV ; \$(zcat ${ap_vcf_file} | snpsift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Stop gained SNV ; \$(zcat ${ap_vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'stop_gained')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## Stop lost
-//        echo -e "Stop lost SNV ; \$(zcat ${ap_vcf_file} | snpsift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Stop lost SNV ; \$(zcat ${ap_vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'stop_lost')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## Splicing
-//        echo -e "Splicing SNV ; \$(zcat ${ap_vcf_file} | snpsift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Splicing SNV ; \$(zcat ${ap_vcf_file} | SnpSift filter "(ANN[*].EFFECT has 'splice_site_region')" | grep -v "^#" | wc -l)" >> ${report}
 //        ## LOF
-//        echo -e "LOF SNV ; \$(zcat ${ap_vcf_file} | snpsift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "LOF SNV ; \$(zcat ${ap_vcf_file} | SnpSift filter "(LOF[*].PERC >= 0.5)" | grep -v "^#" | wc -l)" >> ${report}
 //        """
 //}
 //
@@ -3301,17 +3301,17 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //        ## Singletons
 //        echo -e "Exome Singletons ; \$(bcftools view -i 'AC=1' ${vcf_file_coding} | grep -v "^#" | wc -l)" >> ${report}
 //        ## Nonsynonymous/missense
-//        echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'missense_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Nonsynonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'missense_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## Synonymous
-//        echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'synonymous_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Synonymous SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'synonymous_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## Stop gained
-//        echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_gained')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Stop gained SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_gained')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## Stop lost
-//        echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_lost')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Stop lost SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_lost')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## Splicing
-//        echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'ssplice_site_region')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Splicing SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'ssplice_site_region')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## LOF
-//        echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | snpsift filter "(LOF[*].PERC >= 0.5)" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "LOF SNV ; \$(zcat ${vcf_file_coding} | SnpSift filter "(LOF[*].PERC >= 0.5)" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        """
 //}
 //
@@ -3380,17 +3380,17 @@ merge_pop_sample.into{ merge_pop_sample; merge_pop_sample_sub}
 //        ## Singletons
 //        echo -e "Exome Singletons ; \$(bcftools view -i 'AC=1' ${ap_vcf_file_coding} | grep -v "^#" | wc -l)" >> ${report}
 //        ## Nonsynonymous/missense
-//        echo -e "Nonsynonymous SNV ; \$(zcat ${ap_vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'missense_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Nonsynonymous SNV ; \$(zcat ${ap_vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'missense_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## Synonymous
-//        echo -e "Synonymous SNV ; \$(zcat ${ap_vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'synonymous_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Synonymous SNV ; \$(zcat ${ap_vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'synonymous_variant')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## Stop gained
-//        echo -e "Stop gained SNV ; \$(zcat ${ap_vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_gained')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Stop gained SNV ; \$(zcat ${ap_vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_gained')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## Stop lost
-//        echo -e "Stop lost SNV ; \$(zcat ${ap_vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'stop_lost')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Stop lost SNV ; \$(zcat ${ap_vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'stop_lost')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## Splicing
-//        echo -e "Splicing SNV ; \$(zcat ${ap_vcf_file_coding} | snpsift filter "(ANN[*].EFFECT has 'ssplice_site_region')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "Splicing SNV ; \$(zcat ${ap_vcf_file_coding} | SnpSift filter "(ANN[*].EFFECT has 'ssplice_site_region')" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        ## LOF
-//        echo -e "LOF SNV ; \$(zcat ${ap_vcf_file_coding} | snpsift filter "(LOF[*].PERC >= 0.5)" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
+//        echo -e "LOF SNV ; \$(zcat ${ap_vcf_file_coding} | SnpSift filter "(LOF[*].PERC >= 0.5)" | bcftools view --min-ac 1 | grep -v "^#" | wc -l)" >> ${report}
 //        """
 //}
 //

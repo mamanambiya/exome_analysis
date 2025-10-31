@@ -19,7 +19,7 @@ get_upper_tri <- function(cormat){
     return(cormat)
 }
 
-data <- read.table("${weighted_fst_estimates}")
+data <- read.table("${weighted_fst_estimates}", header = TRUE)
 names(data) <- c("POP1", "POP2", "FST")
 upper_tri <- get_upper_tri(data)
 # Create a ggheatmap
@@ -29,7 +29,7 @@ ggheatmap <- ggplot(data, aes(POP2, POP1, fill = FST))+
     geom_tile(color = "white")+
     scale_fill_gradient2(low = "white", high = "red",
     midpoint = 0, space = "Lab",
-    name="Pearson\nCorrelation") +
+    name="Fst") +
     theme_minimal()+ # minimal theme
     theme(axis.text.x = element_text(angle = 45, vjust = 1,
     size = 12, hjust = 1))+
