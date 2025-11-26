@@ -12,6 +12,7 @@ FROM r-base
 
 ################## BEGIN INSTALLATION ######################
 # Install Basic tools
+RUN apt-get update && apt-get install -y procps && rm -rf /var/lib/apt/lists/*
 
 ## install R packages
 RUN R --slave -e 'install.packages(c("venneuler", "tidyr", "optparse", "data.table", "ggplot2", "dplyr", "reshape2", "grid", "cairo", "sm"), repos="https://cloud.r-project.org/", dependencies=TRUE)'
